@@ -1,3 +1,102 @@
+class PullRequest {
+    constructor(prData) {
+        this.data = prData;
+    }
+
+    get title() { return this.data.title; }
+    get url() { return this.data.url; }
+    get number() { return this.data.number; }
+    get isDraft() { return this.data.isDraft; }
+    get isNotDraft() { return !this.isDraft; }
+    get mergeable() { return this.data.mergeable; }
+    get mergeStateStatus() { return this.data.mergeStateStatus; }
+    get createdAt() { return this.data.createdAt; }
+    get updatedAt() { return this.data.updatedAt; }
+    get repository() { return this.data.repository; }
+    get author() { return this.data.author; }
+    get commits() { return this.data.commits; }
+    get reviews() { return this.data.reviews; }
+
+    isReadyToBeMerged() {
+        return this.isNotDraft && this.hasBeenApproved() && this.hasNoConflicts();
+    }
+
+    isBlockedByOther() {
+        return this.isNotDraft && this.waitingForReview() && this.hasNoConflicts();
+    }
+
+    hasBeenApproved() {
+        const reviews = this.reviews.nodes || [];
+        const hasApprovalReview = reviews.some((review) => {
+            const assignees = this.data.assignees.nodes || [];
+            const isAssignee = assignees.some(assignee => assignee.login === review.author.login);
+            return review.state === 'APPROVED' && !isAssignee;
+        });
+        return hasApprovalReview && !this.hasChangesRequested();
+    }
+
+    approvedBy(){
+        const reviews = this.reviews.nodes || [];
+        const approvedBy = [];
+        reviews.forEach((review) => {
+            if (review.state === 'APPROVED') {
+                approvedBy.push(review.author);
+            }
+        });
+        return approvedBy;
+    }
+
+    hasChangesRequested() {
+        const reviews = this.reviews.nodes || [];
+        return reviews.some(review => review.state === 'CHANGES_REQUESTED');
+    }
+
+    waitingForReview() {
+        return this.isNotDraft && !this.hasBeenApproved();
+    }
+
+    hasNoConflicts() {
+        return this.mergeable === "MERGEABLE";
+    }
+
+    get hasMergeConflicts() {
+        return this.mergeable === "CONFLICTING";
+    }
+
+    get hasUnknownMergeStatus() {
+        return this.mergeable === "UNKNOWN";
+    }
+
+    get isBehindMainBranch() {
+        return this.mergeStateStatus === "BEHIND";
+    }
+
+    isStale() {
+        const updatedDate = new Date(this.updatedAt).toDateString();
+        const today = new Date().toDateString();
+        return updatedDate !== today;
+    }
+
+    getJiraKey() {
+        const jiraMatch = this.title.match(/^\[([A-Z]+-\d+)\]/);
+        return jiraMatch ? jiraMatch[1] : null;
+    }
+
+    getTitleWithoutJira() {
+        return this.title.replace(/^\[([A-Z]+-\d+)\]\s*/, '');
+    }
+
+    get latestCommitSha() {
+        const commits = this.commits.nodes;
+        return commits.length > 0 ? commits[0].commit.oid : null;
+    }
+
+    getStatusCheckRollup() {
+        const commits = this.commits.nodes;
+        return commits.length > 0 ? commits[0].commit.statusCheckRollup : null;
+    }
+}
+
 class GitHubPRDashboard {
     constructor() {
         this.token = localStorage.getItem('github_token');
@@ -131,18 +230,11 @@ class GitHubPRDashboard {
                                         state
                                         author {
                                             login
+                                            avatarUrl
                                         }
                                     }
                                 }
-                                reviewRequests(first: 10) {
-                                    nodes {
-                                        requestedReviewer {
-                                            ... on User {
-                                                login
-                                            }
-                                        }
-                                    }
-                                }
+
                             }
                         }
                     }
@@ -182,15 +274,32 @@ class GitHubPRDashboard {
         const tbody = document.getElementById('prTableBody');
         tbody.innerHTML = '';
 
-        const pullRequests = data.search.edges.map(edge => edge.node);
+        const pullRequests = data.search.edges.map(edge => new PullRequest(edge.node));
 
         if (pullRequests.length === 0) {
             this.showNoDataMessage();
             return;
         }
 
-        // Sort by updatedAt, oldest first
-        pullRequests.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+        // Sort PRs with custom priority logic
+        pullRequests.sort((a, b) => {
+            const aIsReadyToBeMerged = a.isReadyToBeMerged();
+            const bIsReadyToBeMerged = b.isReadyToBeMerged();
+
+            // PRs that are ready to be merged go to top
+            if (aIsReadyToBeMerged && !bIsReadyToBeMerged) return -1;
+            if (!aIsReadyToBeMerged && bIsReadyToBeMerged) return 1;
+
+            const aIsBlockedByOther = a.isBlockedByOther();
+            const bIsBlockedByOther = b.isBlockedByOther();
+
+            // PRs that are blocked by other go to bottom
+            if (aIsBlockedByOther && !bIsBlockedByOther) return 1;
+            if (!aIsBlockedByOther && bIsBlockedByOther) return -1;
+
+            // Within same category, sort by updatedAt (oldest first)
+            return new Date(a.updatedAt) - new Date(b.updatedAt);
+        });
 
         pullRequests.forEach(async (pr, index) => {
             const row = this.createPRRow(pr);
@@ -204,20 +313,36 @@ class GitHubPRDashboard {
     createPRRow(pr) {
         const row = document.createElement('tr');
 
-        // Add yellow background for PRs not updated today
-        const updatedDate = new Date(pr.updatedAt).toDateString();
-        const today = new Date().toDateString();
-        if (updatedDate !== today) {
+        this.applyRowStyling(row, pr);
+
+        row.appendChild(this.createRepositoryCell(pr));
+        row.appendChild(this.createAuthorCell(pr));
+        row.appendChild(this.createTitleCell(pr));
+        row.appendChild(this.createUpToDateCell(pr));
+        row.appendChild(this.createStatusCell(pr));
+        row.appendChild(this.createCICell());
+
+        return row;
+    }
+
+    applyRowStyling(row, pr) {
+        if (pr.isBlockedByOther()) {
+            row.classList.add('blocked-by-other-pr');
+        } else if (pr.isReadyToBeMerged()) {
+            row.classList.add('ready-to-be-merged');
+        } else if (pr.isStale()) {
             row.classList.add('stale-pr');
         }
+    }
 
-        // Repository
-        const repoCell = document.createElement('td');
-        repoCell.textContent = pr.repository.name;
-        row.appendChild(repoCell);
+    createRepositoryCell(pr) {
+        const cell = document.createElement('td');
+        cell.textContent = pr.repository.name;
+        return cell;
+    }
 
-        // Author (avatar only)
-        const authorCell = document.createElement('td');
+    createAuthorCell(pr) {
+        const cell = document.createElement('td');
 
         if (pr.author) {
             const avatar = document.createElement('img');
@@ -225,94 +350,103 @@ class GitHubPRDashboard {
             avatar.alt = pr.author.login;
             avatar.className = 'author-avatar';
             avatar.title = pr.author.login;
-
-            authorCell.appendChild(avatar);
+            cell.appendChild(avatar);
         } else {
-            authorCell.textContent = '?';
+            cell.textContent = '?';
         }
 
-        row.appendChild(authorCell);
+        return cell;
+    }
 
-        // PR Title (with link and JIRA ticket if present)
-        const titleCell = document.createElement('td');
+    createTitleCell(pr) {
+        const cell = document.createElement('td');
 
-        // Check for JIRA ticket in title
-        const jiraMatch = pr.title.match(/^\[([A-Z]+-\d+)\]/);
+        const jiraKey = pr.getJiraKey();
 
-        if (jiraMatch) {
-            const jiraKey = jiraMatch[1];
-            const titleWithoutJira = pr.title.replace(/^\[([A-Z]+-\d+)\]\s*/, '');
-
-            // Create JIRA link
-            const jiraLink = document.createElement('a');
-            jiraLink.href = `https://hoverinc.atlassian.net/browse/${jiraKey}`;
-            jiraLink.target = '_blank';
-            jiraLink.textContent = `[${jiraKey}]`;
-            jiraLink.className = 'jira-link';
-            titleCell.appendChild(jiraLink);
-
-            // Add space
-            titleCell.appendChild(document.createTextNode(' '));
-
-            // Create PR title link
-            const titleLink = document.createElement('a');
-            titleLink.href = pr.url;
-            titleLink.target = '_blank';
-            titleLink.textContent = titleWithoutJira;
-            titleLink.className = 'pr-link';
-            titleCell.appendChild(titleLink);
+        if (jiraKey) {
+            this.addJiraLink(cell, jiraKey);
+            cell.appendChild(document.createTextNode(' '));
+            this.addPRTitleLink(cell, pr.url, pr.getTitleWithoutJira());
         } else {
-            // No JIRA ticket, just PR title
-            const titleLink = document.createElement('a');
-            titleLink.href = pr.url;
-            titleLink.target = '_blank';
-            titleLink.textContent = pr.title;
-            titleLink.className = 'pr-link';
-            titleCell.appendChild(titleLink);
+            this.addPRTitleLink(cell, pr.url, pr.title);
         }
 
         if (pr.isDraft) {
-            const draftBadge = document.createElement('span');
-            draftBadge.className = 'draft-badge';
-            draftBadge.textContent = 'DRAFT';
-            titleCell.appendChild(draftBadge);
+            this.addDraftBadge(cell);
         }
-        row.appendChild(titleCell);
 
-        // Up to Date Status
-        const upToDateCell = document.createElement('td');
-        const upToDateStatus = this.getMergeableStatus(pr);
-        upToDateCell.innerHTML = `<span class="status-badge ${upToDateStatus.class}">${upToDateStatus.text}</span>`;
-        row.appendChild(upToDateCell);
+        return cell;
+    }
 
-        // PR Status
-        const statusCell = document.createElement('td');
-        const prStatus = this.getPRStatus(pr);
-        if (prStatus.text) {
-            const statusBadge = document.createElement('span');
-            statusBadge.className = `status-badge ${prStatus.class}`;
-            statusBadge.textContent = prStatus.text;
-            statusCell.appendChild(statusBadge);
+    addJiraLink(cell, jiraKey) {
+        const jiraLink = document.createElement('a');
+        jiraLink.href = `https://hoverinc.atlassian.net/browse/${jiraKey}`;
+        jiraLink.target = '_blank';
+        jiraLink.textContent = `[${jiraKey}]`;
+        jiraLink.className = 'jira-link';
+        cell.appendChild(jiraLink);
+    }
+
+    addPRTitleLink(cell, url, title) {
+        const titleLink = document.createElement('a');
+        titleLink.href = url;
+        titleLink.target = '_blank';
+        titleLink.textContent = title ;
+        titleLink.className = 'pr-link';
+        cell.appendChild(titleLink);
+    }
+
+    addDraftBadge(cell) {
+        const draftBadge = document.createElement('span');
+        draftBadge.className = 'draft-badge';
+        draftBadge.textContent = 'DRAFT';
+        cell.appendChild(draftBadge);
+    }
+
+    createUpToDateCell(pr) {
+        const cell = document.createElement('td');
+        if (pr.hasMergeConflicts) {
+            cell.innerHTML = '<span class="status-badge error">❌ Conflicts</span>';
+        } else if (pr.hasUnknownMergeStatus) {
+            cell.innerHTML = '<span class="status-badge neutral">🔄 Loading</span>';
+        } else if (pr.isNotDraft && pr.isBehindMainBranch) {
+            cell.innerHTML = '<span class="status-badge warning">⚠️ Behind</span>';
         }
-        row.appendChild(statusCell);
+        return cell;
+    }
 
-        // CI Status (initially loading)
-        const ciCell = document.createElement('td');
-        ciCell.innerHTML = '<span class="status-badge neutral">🔄 Loading...</span>';
-        row.appendChild(ciCell);
+    createStatusCell(pr) {
+        const cell = document.createElement('td');
 
-        return row;
+        if (pr.hasBeenApproved()) {
+            cell.innerHTML = '<span class="status-badge success">✅ Approved by ' + pr.approvedBy().map(a => {
+                return `<img src="${a.avatarUrl}" alt="${a.login}" class="author-avatar">`;
+        }).join(', ') +'</span>';
+
+        } else if (pr.hasChangesRequested()) {
+            cell.innerHTML = '<span class="status-badge warning">🔄 Changes Requested</span>';
+        } else if (pr.waitingForReview()) {
+            cell.innerHTML = '<span class="status-badge neutral">⏳ Waiting for Review</span>';
+        }
+
+        return cell;
+    }
+
+    createCICell() {
+        const cell = document.createElement('td');
+        cell.innerHTML = '<span class="status-badge neutral">🔄 Loading...</span>';
+        return cell;
     }
 
     async loadCIStatusForPR(pr, row, index) {
         try {
-            const commits = pr.commits.nodes;
-            if (!commits.length) {
+            const sha = pr.latestCommitSha;
+            if (!sha) {
                 this.updateCICell(row, { text: 'No CI', class: 'neutral', failedChecks: [] });
                 return;
             }
 
-            const statusRollup = commits[0].commit.statusCheckRollup;
+            const statusRollup = pr.getStatusCheckRollup();
 
             // Get basic status from GraphQL first
             let ciStatus = { text: 'No CI', class: 'neutral', failedChecks: [] };
@@ -325,7 +459,6 @@ class GitHubPRDashboard {
                     case 'FAILURE':
                     case 'ERROR':
                         // Only use REST API when there are actual failures
-                        const sha = commits[0].commit.oid;
                         const [owner, repo] = pr.repository.nameWithOwner.split('/');
                         const failedChecks = await this.fetchFailedChecks(owner, repo, sha);
                         ciStatus = {
@@ -407,79 +540,7 @@ class GitHubPRDashboard {
         }
     }
 
-    getPRStatus(pr) {
-        // Draft PRs show no status
-        if (pr.isDraft) {
-            return { text: '', class: '' };
-        }
 
-        // Check review status
-        const reviews = pr.reviews.nodes || [];
-        const reviewRequests = pr.reviewRequests.nodes || [];
-
-        // Get latest review states by reviewer
-        const reviewsByAuthor = {};
-        reviews.forEach(review => {
-            const author = review.author.login;
-            // Keep only the latest review per author
-            if (!reviewsByAuthor[author] || reviewsByAuthor[author].state !== 'APPROVED') {
-                reviewsByAuthor[author] = review;
-            }
-        });
-
-        const latestReviews = Object.values(reviewsByAuthor);
-        const hasApprovalReview = latestReviews.some(review => review.state === 'APPROVED');
-        const hasChangesRequested = latestReviews.some(review => review.state === 'CHANGES_REQUESTED');
-        const hasPendingRequests = reviewRequests.length > 0;
-
-        if (hasChangesRequested) {
-            return { text: '🔄 Changes Requested', class: 'warning' };
-        }
-
-        if (hasApprovalReview && !hasPendingRequests) {
-            return { text: '✅ Approved', class: 'success' };
-        }
-
-        if (hasPendingRequests || latestReviews.length === 0) {
-            return { text: '⏳ Waiting for Review', class: 'neutral' };
-        }
-
-        return { text: '👀 Need change', class: 'warning' };
-    }
-
-    getMergeableStatus(pr) {
-        if (pr.mergeable === false) {
-            return { text: '❌ Not mergeable', class: 'error' };
-        }
-        if (pr.mergeable === null) {
-            return { text: '🔄 Loading', class: 'neutral' };
-        }
-
-        // Check merge state status first (more detailed info)
-        switch (pr.mergeStateStatus) {
-            case 'CLEAN':
-                return { text: '✅ Up to date', class: 'success' };
-            case 'BEHIND':
-                return { text: '⚠️ Behind', class: 'warning' };
-            case 'DIRTY':
-                return { text: '❌ Conflicts', class: 'error' };
-            // case 'UNSTABLE':
-            // case 'BLOCKED':
-            //     return { text: '🚫 Blocked', class: 'error' };
-            // case 'DRAFT':
-            //     return { text: '📝 Draft', class: 'neutral' };
-            // default:
-                // return { text: pr.mergeStateStatus, class: 'neutral' };
-        }
-        return { text: '', class: 'success' };
-
-        // // Fallback to mergeable field
-        // if (pr.mergeable === true) {
-        //     return { text: '✅ Up to date', class: 'success' };
-        // } else  else {
-        //     return { text: '❓ Unknown', class: 'neutral' };
-        // }
-    }
 
 
 

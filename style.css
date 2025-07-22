@@ -252,6 +252,23 @@ tbody tr:hover {
     background-color: #fde68a !important;
 }
 
+.blocked-by-other-pr {
+    background-color: #f3f4f6 !important;
+    opacity: 0.7;
+}
+
+.blocked-by-other-pr:hover {
+    background-color: #e5e7eb !important;
+    opacity: 0.8;
+}
+
+.ready-to-be-merged {
+    background-color: #23e42d !important;
+}
+
+.ready-to-be-merged:hover {
+    background-color: #bbf7d0 !important;
+}
 /* PR Link */
 .pr-link {
     color: #0969da;
@@ -344,25 +361,25 @@ tbody tr:hover {
     .container {
         padding: 10px;
     }
-    
+
     .controls {
         flex-direction: column;
         gap: 10px;
         text-align: center;
     }
-    
+
     .table-container {
         overflow-x: auto;
     }
-    
+
     table {
         min-width: 600px;
     }
-    
+
     th, td {
         padding: 8px 12px;
     }
-    
+
     .auth-form input {
         max-width: 100%;
     }
@@ -373,12 +390,12 @@ tbody tr:hover {
         padding: 6px 8px;
         font-size: 14px;
     }
-    
+
     .status-badge {
         font-size: 10px;
         padding: 2px 6px;
     }
-    
+
     header h1 {
         font-size: 24px;
     }
