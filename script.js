@@ -48,11 +48,15 @@ class PullRequest {
 
     hasChangesRequested() {
         const reviews = this.reviews.nodes || [];
-        return reviews.some(review => review.state === 'CHANGES_REQUESTED');
+        const hasChangesRequested = reviews.some(review => review.state === 'CHANGES_REQUESTED');
+        if (hasChangesRequested) {
+            return true;
+        }
+        return reviews.some(review => review.state === 'COMMENTED');
     }
 
     waitingForReview() {
-        return this.isNotDraft && !this.hasBeenApproved();
+        return this.isNotDraft && !this.hasBeenApproved() && !this.hasChangesRequested();
     }
 
     hasNoConflicts() {
