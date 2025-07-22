@@ -189,10 +189,13 @@ class GitHubPRDashboard {
             return;
         }
 
+        // Sort by updatedAt, oldest first
+        pullRequests.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+
         pullRequests.forEach(async (pr, index) => {
             const row = this.createPRRow(pr);
             tbody.appendChild(row);
-            
+
             // Load CI status asynchronously for each PR
             this.loadCIStatusForPR(pr, row, index);
         });
@@ -200,6 +203,13 @@ class GitHubPRDashboard {
 
     createPRRow(pr) {
         const row = document.createElement('tr');
+
+        // Add yellow background for PRs not updated today
+        const updatedDate = new Date(pr.updatedAt).toDateString();
+        const today = new Date().toDateString();
+        if (updatedDate !== today) {
+            row.classList.add('stale-pr');
+        }
 
         // Repository
         const repoCell = document.createElement('td');
@@ -223,14 +233,44 @@ class GitHubPRDashboard {
 
         row.appendChild(authorCell);
 
-        // PR Title (with link)
+        // PR Title (with link and JIRA ticket if present)
         const titleCell = document.createElement('td');
-        const titleLink = document.createElement('a');
-        titleLink.href = pr.url;
-        titleLink.target = '_blank';
-        titleLink.textContent = pr.title;
-        titleLink.className = 'pr-link';
-        titleCell.appendChild(titleLink);
+
+        // Check for JIRA ticket in title
+        const jiraMatch = pr.title.match(/^\[([A-Z]+-\d+)\]/);
+
+        if (jiraMatch) {
+            const jiraKey = jiraMatch[1];
+            const titleWithoutJira = pr.title.replace(/^\[([A-Z]+-\d+)\]\s*/, '');
+
+            // Create JIRA link
+            const jiraLink = document.createElement('a');
+            jiraLink.href = `https://hoverinc.atlassian.net/browse/${jiraKey}`;
+            jiraLink.target = '_blank';
+            jiraLink.textContent = `[${jiraKey}]`;
+            jiraLink.className = 'jira-link';
+            titleCell.appendChild(jiraLink);
+
+            // Add space
+            titleCell.appendChild(document.createTextNode(' '));
+
+            // Create PR title link
+            const titleLink = document.createElement('a');
+            titleLink.href = pr.url;
+            titleLink.target = '_blank';
+            titleLink.textContent = titleWithoutJira;
+            titleLink.className = 'pr-link';
+            titleCell.appendChild(titleLink);
+        } else {
+            // No JIRA ticket, just PR title
+            const titleLink = document.createElement('a');
+            titleLink.href = pr.url;
+            titleLink.target = '_blank';
+            titleLink.textContent = pr.title;
+            titleLink.className = 'pr-link';
+            titleCell.appendChild(titleLink);
+        }
+
         if (pr.isDraft) {
             const draftBadge = document.createElement('span');
             draftBadge.className = 'draft-badge';
@@ -276,7 +316,7 @@ class GitHubPRDashboard {
 
             // Get basic status from GraphQL first
             let ciStatus = { text: 'No CI', class: 'neutral', failedChecks: [] };
-            
+
             if (statusRollup) {
                 switch (statusRollup.state) {
                     case 'SUCCESS':
@@ -288,10 +328,10 @@ class GitHubPRDashboard {
                         const sha = commits[0].commit.oid;
                         const [owner, repo] = pr.repository.nameWithOwner.split('/');
                         const failedChecks = await this.fetchFailedChecks(owner, repo, sha);
-                        ciStatus = { 
-                            text: statusRollup.state === 'FAILURE' ? '❌ Failed' : '💥 Error', 
-                            class: 'error', 
-                            failedChecks: failedChecks 
+                        ciStatus = {
+                            text: statusRollup.state === 'FAILURE' ? '❌ Failed' : '💥 Error',
+                            class: 'error',
+                            failedChecks: failedChecks
                         };
                         break;
                     case 'PENDING':
@@ -328,8 +368,13 @@ class GitHubPRDashboard {
             if (data.check_runs) {
                 data.check_runs.forEach(checkRun => {
                     if (checkRun.conclusion === 'failure') {
+                        let checkName = checkRun.name;
+
+                        // Clean up Hyperion check names
+                        checkName = checkName.replace(/^rails-ci\s\/ /, '');
+
                         failedChecks.push({
-                            name: checkRun.name,
+                            name: checkName,
                             url: checkRun.html_url || checkRun.details_url || '#'
                         });
                     }
@@ -345,7 +390,7 @@ class GitHubPRDashboard {
 
     updateCICell(row, ciStatus) {
         const ciCell = row.cells[5]; // CI Status is the 6th column (0-indexed)
-        
+
         if (ciStatus.class === 'error' && ciStatus.failedChecks.length > 0) {
             ciCell.innerHTML = `
                 <div class="ci-status-container">

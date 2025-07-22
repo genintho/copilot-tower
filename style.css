@@ -244,6 +244,14 @@ tbody tr:hover {
     background-color: #f6f8fa;
 }
 
+.stale-pr {
+    background-color: #fef3c7 !important;
+}
+
+.stale-pr:hover {
+    background-color: #fde68a !important;
+}
+
 /* PR Link */
 .pr-link {
     color: #0969da;
@@ -253,6 +261,21 @@ tbody tr:hover {
 
 .pr-link:hover {
     text-decoration: underline;
+}
+
+.jira-link {
+    color: #0052cc;
+    text-decoration: none;
+    font-weight: 600;
+    background-color: #deebff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.jira-link:hover {
+    background-color: #b3d4ff;
+    text-decoration: none;
 }
 
 /* Author Avatar */
