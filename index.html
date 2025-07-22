@@ -8,10 +8,6 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>GitHub PR Dashboard - Hoverinc</h1>
-            <p>View your assigned pull requests across the organization</p>
-        </header>
 
         <div class="auth-section" id="authSection">
             <div class="auth-form">
@@ -29,11 +25,8 @@
         <div class="main-content" id="mainContent" style="display: none;">
             <div class="controls">
                 <button id="refreshButton">🔄 Refresh Data</button>
+                <span id="loadingSpinner" class="loading-inline" style="display: none;">Loading...</span>
                 <span id="lastUpdated"></span>
-            </div>
-
-            <div id="loadingSpinner" class="loading" style="display: none;">
-                <p>Loading your assigned pull requests...</p>
             </div>
 
             <div id="errorMessage" class="error" style="display: none;"></div>
