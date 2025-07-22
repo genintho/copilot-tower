@@ -243,12 +243,6 @@ class GitHubPRDashboard {
         ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
         row.appendChild(ciCell);
 
-        // Notes
-        const notesCell = document.createElement('td');
-        const notes = this.generateNotes(pr);
-        notesCell.textContent = notes;
-        row.appendChild(notesCell);
-
         return row;
     }
 
@@ -302,20 +296,6 @@ class GitHubPRDashboard {
         return { text: 'No CI', class: 'neutral' };
     }
 
-    generateNotes(pr) {
-        const notes = [];
-        
-        if (pr.isDraft) {
-            notes.push('Draft PR');
-        }
-        
-        const daysSinceUpdate = Math.floor((Date.now() - new Date(pr.updatedAt)) / (1000 * 60 * 60 * 24));
-        if (daysSinceUpdate > 7) {
-            notes.push(`Updated ${daysSinceUpdate} days ago`);
-        }
-
-        return notes.join(', ') || '';
-    }
 
     showLoading(show) {
         document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
