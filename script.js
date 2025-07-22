@@ -14,7 +14,7 @@ class GitHubPRDashboard {
         document.getElementById('saveToken').addEventListener('click', () => this.saveToken());
         document.getElementById('clearToken').addEventListener('click', () => this.clearToken());
         document.getElementById('refreshButton').addEventListener('click', () => this.loadPullRequests());
-        
+
         // Allow Enter key to save token
         document.getElementById('githubToken').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.saveToken();
@@ -33,7 +33,7 @@ class GitHubPRDashboard {
     saveToken() {
         const tokenInput = document.getElementById('githubToken');
         const token = tokenInput.value.trim();
-        
+
         if (!token) {
             this.showError('Please enter a valid GitHub token');
             return;
@@ -42,7 +42,7 @@ class GitHubPRDashboard {
         this.token = token;
         localStorage.setItem('github_token', token);
         tokenInput.value = '';
-        
+
         this.showMainContent();
         this.loadPullRequests();
     }
@@ -98,6 +98,7 @@ class GitHubPRDashboard {
                                 state
                                 isDraft
                                 mergeable
+                                mergeStateStatus
                                 headRefName
                                 baseRefName
                                 createdAt
@@ -183,10 +184,10 @@ class GitHubPRDashboard {
         }
 
         const result = await response.json();
-        
+
         // Update rate limit info from response headers
         this.updateRateLimitInfo(response.headers);
-        
+
         if (result.errors) {
             throw new Error(result.errors.map(e => e.message).join(', '));
         }
@@ -199,7 +200,7 @@ class GitHubPRDashboard {
         tbody.innerHTML = '';
 
         const pullRequests = data.search.edges.map(edge => edge.node);
-        
+
         if (pullRequests.length === 0) {
             this.showNoDataMessage();
             return;
@@ -213,7 +214,7 @@ class GitHubPRDashboard {
 
     createPRRow(pr) {
         const row = document.createElement('tr');
-        
+
         // Repository
         const repoCell = document.createElement('td');
         repoCell.textContent = pr.repository.name;
@@ -221,19 +222,19 @@ class GitHubPRDashboard {
 
         // Author (avatar only)
         const authorCell = document.createElement('td');
-        
+
         if (pr.author) {
             const avatar = document.createElement('img');
             avatar.src = pr.author.avatarUrl;
             avatar.alt = pr.author.login;
             avatar.className = 'author-avatar';
             avatar.title = pr.author.login;
-            
+
             authorCell.appendChild(avatar);
         } else {
             authorCell.textContent = '?';
         }
-        
+
         row.appendChild(authorCell);
 
         // PR Title (with link)
@@ -254,7 +255,7 @@ class GitHubPRDashboard {
 
         // Up to Date Status
         const upToDateCell = document.createElement('td');
-        const upToDateStatus = this.getMergeableStatus(pr.mergeable);
+        const upToDateStatus = this.getMergeableStatus(pr);
         upToDateCell.innerHTML = `<span class="status-badge ${upToDateStatus.class}">${upToDateStatus.text}</span>`;
         row.appendChild(upToDateCell);
 
@@ -272,13 +273,13 @@ class GitHubPRDashboard {
         // CI Status
         const ciCell = document.createElement('td');
         const ciStatus = this.getCIStatus(pr);
-        
+
         if (ciStatus.class === 'error' && ciStatus.failedChecks.length > 0) {
             ciCell.innerHTML = `
                 <div class="ci-status-container">
                     <span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>
                     <ul class="failed-checks-list">
-                        ${ciStatus.failedChecks.map(check => 
+                        ${ciStatus.failedChecks.map(check =>
                             `<li><a href="${check.url}" target="_blank" class="check-link">${check.name}</a></li>`
                         ).join('')}
                     </ul>
@@ -287,7 +288,7 @@ class GitHubPRDashboard {
         } else {
             ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
         }
-        
+
         row.appendChild(ciCell);
 
         return row;
@@ -321,26 +322,50 @@ class GitHubPRDashboard {
         if (hasChangesRequested) {
             return { text: '🔄 Changes Requested', class: 'warning' };
         }
-        
+
         if (hasApprovalReview && !hasPendingRequests) {
             return { text: '✅ Approved', class: 'success' };
         }
-        
+
         if (hasPendingRequests || latestReviews.length === 0) {
             return { text: '⏳ Waiting for Review', class: 'neutral' };
         }
 
-        return { text: '👀 Under Review', class: 'neutral' };
+        return { text: '👀 Need change', class: 'warning' };
     }
 
-    getMergeableStatus(mergeable) {
-        if (mergeable === true) {
-            return { text: '✅ Mergeable', class: 'success' };
-        } else if (mergeable === false) {
+    getMergeableStatus(pr) {
+        if (pr.mergeable === false) {
             return { text: '❌ Not mergeable', class: 'error' };
-        } else {
-            return { text: '❓ Unknown', class: 'neutral' };
         }
+        if (pr.mergeable === null) {
+            return { text: '🔄 Loading', class: 'neutral' };
+        }
+
+        // Check merge state status first (more detailed info)
+        switch (pr.mergeStateStatus) {
+            case 'CLEAN':
+                return { text: '✅ Up to date', class: 'success' };
+            case 'BEHIND':
+                return { text: '⚠️ Behind', class: 'warning' };
+            case 'DIRTY':
+                return { text: '❌ Conflicts', class: 'error' };
+            // case 'UNSTABLE':
+            // case 'BLOCKED':
+            //     return { text: '🚫 Blocked', class: 'error' };
+            // case 'DRAFT':
+            //     return { text: '📝 Draft', class: 'neutral' };
+            // default:
+                // return { text: pr.mergeStateStatus, class: 'neutral' };
+        }
+        return { text: '', class: 'success' };
+
+        // // Fallback to mergeable field
+        // if (pr.mergeable === true) {
+        //     return { text: '✅ Up to date', class: 'success' };
+        // } else  else {
+        //     return { text: '❓ Unknown', class: 'neutral' };
+        // }
     }
 
     getCIStatus(pr) {
@@ -351,7 +376,7 @@ class GitHubPRDashboard {
 
         const lastCommit = commits[0].commit;
         const statusRollup = lastCommit.statusCheckRollup;
-        
+
         if (statusRollup) {
             switch (statusRollup.state) {
                 case 'SUCCESS':
@@ -372,10 +397,10 @@ class GitHubPRDashboard {
         if (checkSuites.length > 0) {
             const hasFailure = checkSuites.some(cs => cs.conclusion === 'FAILURE');
             const hasPending = checkSuites.some(cs => cs.status === 'IN_PROGRESS' || cs.status === 'QUEUED');
-            
+
             if (hasFailure) return { text: '❌ Failed', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
             if (hasPending) return { text: '🟡 Running', class: 'warning', failedChecks: [] };
-            
+
             const allComplete = checkSuites.every(cs => cs.status === 'COMPLETED');
             if (allComplete) return { text: '✅ Passed', class: 'success', failedChecks: [] };
         }
@@ -385,7 +410,7 @@ class GitHubPRDashboard {
 
     getFailedChecks(commit) {
         const failedChecks = [];
-        
+
         // Get failed check runs with their URLs
         if (commit.checkSuites && commit.checkSuites.nodes) {
             commit.checkSuites.nodes.forEach(checkSuite => {
@@ -399,9 +424,9 @@ class GitHubPRDashboard {
                         }
                     });
                 }
-                
+
                 // Fallback to check suite if no specific check runs found
-                if (checkSuite.conclusion === 'FAILURE' && 
+                if (checkSuite.conclusion === 'FAILURE' &&
                     (!checkSuite.checkRuns || checkSuite.checkRuns.nodes.length === 0)) {
                     const name = checkSuite.app ? checkSuite.app.name : 'Unknown Check';
                     failedChecks.push({
@@ -411,12 +436,12 @@ class GitHubPRDashboard {
                 }
             });
         }
-        
+
         // Remove duplicates based on name
-        const uniqueChecks = failedChecks.filter((check, index, self) => 
+        const uniqueChecks = failedChecks.filter((check, index, self) =>
             index === self.findIndex(c => c.name === check.name)
         );
-        
+
         return uniqueChecks;
     }
 
@@ -447,11 +472,11 @@ class GitHubPRDashboard {
         const remaining = headers.get('x-ratelimit-remaining');
         const limit = headers.get('x-ratelimit-limit');
         const resetTime = headers.get('x-ratelimit-reset');
-        
+
         if (remaining && limit) {
             const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
             const resetString = resetDate ? ` (resets ${resetDate.toLocaleTimeString()})` : '';
-            
+
             const rateLimitElement = document.getElementById('rateLimit');
             rateLimitElement.textContent = `API: ${remaining}/${limit}${resetString}`;
             rateLimitElement.className = remaining < 100 ? 'rate-limit-low' : 'rate-limit-ok';
