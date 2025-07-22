@@ -190,10 +190,8 @@ class GitHubPRDashboard {
         repoCell.textContent = pr.repository.name;
         row.appendChild(repoCell);
 
-        // Author (with avatar)
+        // Author (avatar only)
         const authorCell = document.createElement('td');
-        const authorContainer = document.createElement('div');
-        authorContainer.className = 'author-container';
         
         if (pr.author) {
             const avatar = document.createElement('img');
@@ -202,17 +200,11 @@ class GitHubPRDashboard {
             avatar.className = 'author-avatar';
             avatar.title = pr.author.login;
             
-            const authorName = document.createElement('span');
-            authorName.textContent = pr.author.login;
-            authorName.className = 'author-name';
-            
-            authorContainer.appendChild(avatar);
-            authorContainer.appendChild(authorName);
+            authorCell.appendChild(avatar);
         } else {
-            authorContainer.textContent = 'Unknown';
+            authorCell.textContent = '?';
         }
         
-        authorCell.appendChild(authorContainer);
         row.appendChild(authorCell);
 
         // PR Title (with link)
