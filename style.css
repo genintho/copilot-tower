@@ -161,6 +161,36 @@ body {
     font-weight: 500;
 }
 
+/* CI Status Container */
+.ci-status-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+/* Failed Checks List */
+.failed-checks-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 11px;
+    flex: 1;
+}
+
+.failed-checks-list li {
+    margin: 1px 0;
+}
+
+.check-link {
+    color: #dc2626;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.check-link:hover {
+    text-decoration: underline;
+}
+
 /* Loading and Error States */
 .loading, .error, .no-data {
     text-align: center;

@@ -120,8 +120,17 @@ class GitHubPRDashboard {
                                                 nodes {
                                                     status
                                                     conclusion
+                                                    url
                                                     app {
                                                         name
+                                                    }
+                                                    checkRuns(first: 10) {
+                                                        nodes {
+                                                            name
+                                                            status
+                                                            conclusion
+                                                            detailsUrl
+                                                        }
                                                     }
                                                 }
                                             }
@@ -243,7 +252,22 @@ class GitHubPRDashboard {
         // CI Status
         const ciCell = document.createElement('td');
         const ciStatus = this.getCIStatus(pr);
-        ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
+        
+        if (ciStatus.class === 'error' && ciStatus.failedChecks.length > 0) {
+            ciCell.innerHTML = `
+                <div class="ci-status-container">
+                    <span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>
+                    <ul class="failed-checks-list">
+                        ${ciStatus.failedChecks.map(check => 
+                            `<li><a href="${check.url}" target="_blank" class="check-link">${check.name}</a></li>`
+                        ).join('')}
+                    </ul>
+                </div>
+            `;
+        } else {
+            ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
+        }
+        
         row.appendChild(ciCell);
 
         return row;
@@ -262,7 +286,7 @@ class GitHubPRDashboard {
     getCIStatus(pr) {
         const commits = pr.commits.nodes;
         if (!commits.length) {
-            return { text: 'No CI', class: 'neutral' };
+            return { text: 'No CI', class: 'neutral', failedChecks: [] };
         }
 
         const lastCommit = commits[0].commit;
@@ -271,15 +295,15 @@ class GitHubPRDashboard {
         if (statusRollup) {
             switch (statusRollup.state) {
                 case 'SUCCESS':
-                    return { text: '✅ Passed', class: 'success' };
+                    return { text: '✅ Passed', class: 'success', failedChecks: [] };
                 case 'FAILURE':
-                    return { text: '❌ Failed', class: 'error' };
+                    return { text: '❌ Failed', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
                 case 'PENDING':
-                    return { text: '🟡 Running', class: 'warning' };
+                    return { text: '🟡 Running', class: 'warning', failedChecks: [] };
                 case 'ERROR':
-                    return { text: '💥 Error', class: 'error' };
+                    return { text: '💥 Error', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
                 default:
-                    return { text: statusRollup.state, class: 'neutral' };
+                    return { text: statusRollup.state, class: 'neutral', failedChecks: [] };
             }
         }
 
@@ -289,14 +313,51 @@ class GitHubPRDashboard {
             const hasFailure = checkSuites.some(cs => cs.conclusion === 'FAILURE');
             const hasPending = checkSuites.some(cs => cs.status === 'IN_PROGRESS' || cs.status === 'QUEUED');
             
-            if (hasFailure) return { text: '❌ Failed', class: 'error' };
-            if (hasPending) return { text: '🟡 Running', class: 'warning' };
+            if (hasFailure) return { text: '❌ Failed', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
+            if (hasPending) return { text: '🟡 Running', class: 'warning', failedChecks: [] };
             
             const allComplete = checkSuites.every(cs => cs.status === 'COMPLETED');
-            if (allComplete) return { text: '✅ Passed', class: 'success' };
+            if (allComplete) return { text: '✅ Passed', class: 'success', failedChecks: [] };
         }
 
-        return { text: 'No CI', class: 'neutral' };
+        return { text: 'No CI', class: 'neutral', failedChecks: [] };
+    }
+
+    getFailedChecks(commit) {
+        const failedChecks = [];
+        
+        // Get failed check runs with their URLs
+        if (commit.checkSuites && commit.checkSuites.nodes) {
+            commit.checkSuites.nodes.forEach(checkSuite => {
+                if (checkSuite.checkRuns && checkSuite.checkRuns.nodes) {
+                    checkSuite.checkRuns.nodes.forEach(checkRun => {
+                        if (checkRun.conclusion === 'FAILURE') {
+                            failedChecks.push({
+                                name: checkRun.name,
+                                url: checkRun.detailsUrl || checkSuite.url || '#'
+                            });
+                        }
+                    });
+                }
+                
+                // Fallback to check suite if no specific check runs found
+                if (checkSuite.conclusion === 'FAILURE' && 
+                    (!checkSuite.checkRuns || checkSuite.checkRuns.nodes.length === 0)) {
+                    const name = checkSuite.app ? checkSuite.app.name : 'Unknown Check';
+                    failedChecks.push({
+                        name: name,
+                        url: checkSuite.url || '#'
+                    });
+                }
+            });
+        }
+        
+        // Remove duplicates based on name
+        const uniqueChecks = failedChecks.filter((check, index, self) => 
+            index === self.findIndex(c => c.name === check.name)
+        );
+        
+        return uniqueChecks;
     }
 
 
