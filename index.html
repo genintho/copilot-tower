@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub PR Dashboard - Hoverinc</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GitHub PR Dashboard - Hoverinc</h1>
+            <p>View your assigned pull requests across the organization</p>
+        </header>
+
+        <div class="auth-section" id="authSection">
+            <div class="auth-form">
+                <label for="githubToken">GitHub Personal Access Token:</label>
+                <input type="password" id="githubToken" placeholder="Enter your GitHub token">
+                <button id="saveToken">Save Token</button>
+                <button id="clearToken">Clear Token</button>
+            </div>
+            <div class="token-info">
+                <p>You need a GitHub Personal Access Token with <code>repo</code> scope to access organization repositories.</p>
+                <a href="https://github.com/settings/tokens" target="_blank">Create Token</a>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent" style="display: none;">
+            <div class="controls">
+                <button id="refreshButton">🔄 Refresh Data</button>
+                <span id="lastUpdated"></span>
+            </div>
+
+            <div id="loadingSpinner" class="loading" style="display: none;">
+                <p>Loading your assigned pull requests...</p>
+            </div>
+
+            <div id="errorMessage" class="error" style="display: none;"></div>
+
+            <div class="table-container">
+                <table id="prTable">
+                    <thead>
+                        <tr>
+                            <th>Repository</th>
+                            <th>Author</th>
+                            <th>PR Title</th>
+                            <th>Up to Date</th>
+                            <th>Status</th>
+                            <th>CI Status</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prTableBody">
+                        <!-- PR data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="noPrsMessage" class="no-data" style="display: none;">
+                <p>No assigned pull requests found in the hoverinc organization.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
