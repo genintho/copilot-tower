@@ -142,6 +142,23 @@ class GitHubPRDashboard {
                                         login
                                     }
                                 }
+                                reviews(first: 10) {
+                                    nodes {
+                                        state
+                                        author {
+                                            login
+                                        }
+                                    }
+                                }
+                                reviewRequests(first: 10) {
+                                    nodes {
+                                        requestedReviewer {
+                                            ... on User {
+                                                login
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -243,10 +260,13 @@ class GitHubPRDashboard {
 
         // PR Status
         const statusCell = document.createElement('td');
-        const statusBadge = document.createElement('span');
-        statusBadge.className = `status-badge ${pr.state.toLowerCase()}`;
-        statusBadge.textContent = pr.isDraft ? 'DRAFT' : pr.state;
-        statusCell.appendChild(statusBadge);
+        const prStatus = this.getPRStatus(pr);
+        if (prStatus.text) {
+            const statusBadge = document.createElement('span');
+            statusBadge.className = `status-badge ${prStatus.class}`;
+            statusBadge.textContent = prStatus.text;
+            statusCell.appendChild(statusBadge);
+        }
         row.appendChild(statusCell);
 
         // CI Status
@@ -271,6 +291,46 @@ class GitHubPRDashboard {
         row.appendChild(ciCell);
 
         return row;
+    }
+
+    getPRStatus(pr) {
+        // Draft PRs show no status
+        if (pr.isDraft) {
+            return { text: '', class: '' };
+        }
+
+        // Check review status
+        const reviews = pr.reviews.nodes || [];
+        const reviewRequests = pr.reviewRequests.nodes || [];
+
+        // Get latest review states by reviewer
+        const reviewsByAuthor = {};
+        reviews.forEach(review => {
+            const author = review.author.login;
+            // Keep only the latest review per author
+            if (!reviewsByAuthor[author] || reviewsByAuthor[author].state !== 'APPROVED') {
+                reviewsByAuthor[author] = review;
+            }
+        });
+
+        const latestReviews = Object.values(reviewsByAuthor);
+        const hasApprovalReview = latestReviews.some(review => review.state === 'APPROVED');
+        const hasChangesRequested = latestReviews.some(review => review.state === 'CHANGES_REQUESTED');
+        const hasPendingRequests = reviewRequests.length > 0;
+
+        if (hasChangesRequested) {
+            return { text: '🔄 Changes Requested', class: 'warning' };
+        }
+        
+        if (hasApprovalReview && !hasPendingRequests) {
+            return { text: '✅ Approved', class: 'success' };
+        }
+        
+        if (hasPendingRequests || latestReviews.length === 0) {
+            return { text: '⏳ Waiting for Review', class: 'neutral' };
+        }
+
+        return { text: '👀 Under Review', class: 'neutral' };
     }
 
     getMergeableStatus(mergeable) {
