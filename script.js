@@ -158,6 +158,9 @@ class GitHubPRDashboard {
 
         const result = await response.json();
         
+        // Update rate limit info from response headers
+        this.updateRateLimitInfo(response.headers);
+        
         if (result.errors) {
             throw new Error(result.errors.map(e => e.message).join(', '));
         }
@@ -317,6 +320,21 @@ class GitHubPRDashboard {
 
     hideNoDataMessage() {
         document.getElementById('noPrsMessage').style.display = 'none';
+    }
+
+    updateRateLimitInfo(headers) {
+        const remaining = headers.get('x-ratelimit-remaining');
+        const limit = headers.get('x-ratelimit-limit');
+        const resetTime = headers.get('x-ratelimit-reset');
+        
+        if (remaining && limit) {
+            const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
+            const resetString = resetDate ? ` (resets ${resetDate.toLocaleTimeString()})` : '';
+            
+            const rateLimitElement = document.getElementById('rateLimit');
+            rateLimitElement.textContent = `API: ${remaining}/${limit}${resetString}`;
+            rateLimitElement.className = remaining < 100 ? 'rate-limit-low' : 'rate-limit-ok';
+        }
     }
 
     updateLastRefreshed() {

@@ -141,6 +141,20 @@ body {
     font-size: 14px;
 }
 
+#rateLimit {
+    font-size: 14px;
+    margin-right: 15px;
+}
+
+.rate-limit-ok {
+    color: #656d76;
+}
+
+.rate-limit-low {
+    color: #d73a49;
+    font-weight: 600;
+}
+
 .loading-inline {
     color: #0969da;
     font-size: 14px;
