@@ -413,7 +413,7 @@ class GitHubPRDashboard {
             cell.innerHTML = '<span class="status-badge error">❌ Conflicts</span>';
         } else if (pr.hasUnknownMergeStatus) {
             cell.innerHTML = '<span class="status-badge neutral">🔄 Loading</span>';
-        } else if (pr.isNotDraft && pr.isBehindMainBranch) {
+        } else if ( pr.isBehindMainBranch) {
             cell.innerHTML = '<span class="status-badge warning">⚠️ Behind</span>';
         }
         return cell;
@@ -430,6 +430,7 @@ class GitHubPRDashboard {
         } else if (pr.hasChangesRequested()) {
             cell.innerHTML = '<span class="status-badge warning">🔄 Changes Requested</span>';
         } else if (pr.waitingForReview()) {
+            console.log('waitingForReview', pr);
             cell.innerHTML = '<span class="status-badge neutral">⏳ Waiting for Review</span>';
         }
 
