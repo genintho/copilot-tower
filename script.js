@@ -114,26 +114,9 @@ class GitHubPRDashboard {
                                 commits(last: 1) {
                                     nodes {
                                         commit {
+                                            oid
                                             statusCheckRollup {
                                                 state
-                                            }
-                                            checkSuites(first: 10) {
-                                                nodes {
-                                                    status
-                                                    conclusion
-                                                    url
-                                                    app {
-                                                        name
-                                                    }
-                                                    checkRuns(first: 10) {
-                                                        nodes {
-                                                            name
-                                                            status
-                                                            conclusion
-                                                            detailsUrl
-                                                        }
-                                                    }
-                                                }
                                             }
                                         }
                                     }
@@ -206,9 +189,12 @@ class GitHubPRDashboard {
             return;
         }
 
-        pullRequests.forEach(pr => {
+        pullRequests.forEach(async (pr, index) => {
             const row = this.createPRRow(pr);
             tbody.appendChild(row);
+            
+            // Load CI status asynchronously for each PR
+            this.loadCIStatusForPR(pr, row, index);
         });
     }
 
@@ -270,10 +256,96 @@ class GitHubPRDashboard {
         }
         row.appendChild(statusCell);
 
-        // CI Status
+        // CI Status (initially loading)
         const ciCell = document.createElement('td');
-        const ciStatus = this.getCIStatus(pr);
+        ciCell.innerHTML = '<span class="status-badge neutral">🔄 Loading...</span>';
+        row.appendChild(ciCell);
 
+        return row;
+    }
+
+    async loadCIStatusForPR(pr, row, index) {
+        try {
+            const commits = pr.commits.nodes;
+            if (!commits.length) {
+                this.updateCICell(row, { text: 'No CI', class: 'neutral', failedChecks: [] });
+                return;
+            }
+
+            const statusRollup = commits[0].commit.statusCheckRollup;
+
+            // Get basic status from GraphQL first
+            let ciStatus = { text: 'No CI', class: 'neutral', failedChecks: [] };
+            
+            if (statusRollup) {
+                switch (statusRollup.state) {
+                    case 'SUCCESS':
+                        ciStatus = { text: '✅ Passed', class: 'success', failedChecks: [] };
+                        break;
+                    case 'FAILURE':
+                    case 'ERROR':
+                        // Only use REST API when there are actual failures
+                        const sha = commits[0].commit.oid;
+                        const [owner, repo] = pr.repository.nameWithOwner.split('/');
+                        const failedChecks = await this.fetchFailedChecks(owner, repo, sha);
+                        ciStatus = { 
+                            text: statusRollup.state === 'FAILURE' ? '❌ Failed' : '💥 Error', 
+                            class: 'error', 
+                            failedChecks: failedChecks 
+                        };
+                        break;
+                    case 'PENDING':
+                        ciStatus = { text: '🟡 Running', class: 'warning', failedChecks: [] };
+                        break;
+                }
+            }
+
+            this.updateCICell(row, ciStatus);
+        } catch (error) {
+            console.warn(`Failed to load CI status for PR ${pr.number}:`, error);
+            this.updateCICell(row, { text: 'Error', class: 'error', failedChecks: [] });
+        }
+    }
+
+    async fetchFailedChecks(owner, repo, sha) {
+        try {
+            // Use REST API to get check runs for the commit
+            const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${sha}/check-runs`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                }
+            });
+
+            if (!response.ok) {
+                console.warn(`Failed to fetch check runs for ${owner}/${repo}@${sha}`);
+                return [];
+            }
+
+            const data = await response.json();
+            const failedChecks = [];
+
+            if (data.check_runs) {
+                data.check_runs.forEach(checkRun => {
+                    if (checkRun.conclusion === 'failure') {
+                        failedChecks.push({
+                            name: checkRun.name,
+                            url: checkRun.html_url || checkRun.details_url || '#'
+                        });
+                    }
+                });
+            }
+
+            return failedChecks;
+        } catch (error) {
+            console.warn(`Error fetching failed checks for ${owner}/${repo}@${sha}:`, error);
+            return [];
+        }
+    }
+
+    updateCICell(row, ciStatus) {
+        const ciCell = row.cells[5]; // CI Status is the 6th column (0-indexed)
+        
         if (ciStatus.class === 'error' && ciStatus.failedChecks.length > 0) {
             ciCell.innerHTML = `
                 <div class="ci-status-container">
@@ -288,10 +360,6 @@ class GitHubPRDashboard {
         } else {
             ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
         }
-
-        row.appendChild(ciCell);
-
-        return row;
     }
 
     getPRStatus(pr) {
@@ -368,82 +436,6 @@ class GitHubPRDashboard {
         // }
     }
 
-    getCIStatus(pr) {
-        const commits = pr.commits.nodes;
-        if (!commits.length) {
-            return { text: 'No CI', class: 'neutral', failedChecks: [] };
-        }
-
-        const lastCommit = commits[0].commit;
-        const statusRollup = lastCommit.statusCheckRollup;
-
-        if (statusRollup) {
-            switch (statusRollup.state) {
-                case 'SUCCESS':
-                    return { text: '✅ Passed', class: 'success', failedChecks: [] };
-                case 'FAILURE':
-                    return { text: '❌ Failed', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
-                case 'PENDING':
-                    return { text: '🟡 Running', class: 'warning', failedChecks: [] };
-                case 'ERROR':
-                    return { text: '💥 Error', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
-                default:
-                    return { text: statusRollup.state, class: 'neutral', failedChecks: [] };
-            }
-        }
-
-        // Check individual check suites if no rollup
-        const checkSuites = lastCommit.checkSuites.nodes;
-        if (checkSuites.length > 0) {
-            const hasFailure = checkSuites.some(cs => cs.conclusion === 'FAILURE');
-            const hasPending = checkSuites.some(cs => cs.status === 'IN_PROGRESS' || cs.status === 'QUEUED');
-
-            if (hasFailure) return { text: '❌ Failed', class: 'error', failedChecks: this.getFailedChecks(lastCommit) };
-            if (hasPending) return { text: '🟡 Running', class: 'warning', failedChecks: [] };
-
-            const allComplete = checkSuites.every(cs => cs.status === 'COMPLETED');
-            if (allComplete) return { text: '✅ Passed', class: 'success', failedChecks: [] };
-        }
-
-        return { text: 'No CI', class: 'neutral', failedChecks: [] };
-    }
-
-    getFailedChecks(commit) {
-        const failedChecks = [];
-
-        // Get failed check runs with their URLs
-        if (commit.checkSuites && commit.checkSuites.nodes) {
-            commit.checkSuites.nodes.forEach(checkSuite => {
-                if (checkSuite.checkRuns && checkSuite.checkRuns.nodes) {
-                    checkSuite.checkRuns.nodes.forEach(checkRun => {
-                        if (checkRun.conclusion === 'FAILURE') {
-                            failedChecks.push({
-                                name: checkRun.name,
-                                url: checkRun.detailsUrl || checkSuite.url || '#'
-                            });
-                        }
-                    });
-                }
-
-                // Fallback to check suite if no specific check runs found
-                if (checkSuite.conclusion === 'FAILURE' &&
-                    (!checkSuite.checkRuns || checkSuite.checkRuns.nodes.length === 0)) {
-                    const name = checkSuite.app ? checkSuite.app.name : 'Unknown Check';
-                    failedChecks.push({
-                        name: name,
-                        url: checkSuite.url || '#'
-                    });
-                }
-            });
-        }
-
-        // Remove duplicates based on name
-        const uniqueChecks = failedChecks.filter((check, index, self) =>
-            index === self.findIndex(c => c.name === check.name)
-        );
-
-        return uniqueChecks;
-    }
 
 
     showLoading(show) {
