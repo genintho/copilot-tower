@@ -122,6 +122,13 @@ class GitHubPRDashboard {
         document.getElementById('githubToken').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.saveToken();
         });
+
+        // Refresh when tab comes back into focus
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && this.token) {
+                this.loadPullRequests();
+            }
+        });
     }
 
     checkAuthentication() {
