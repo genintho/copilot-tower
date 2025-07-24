@@ -177,6 +177,10 @@ class GitHubPRDashboard {
         this.showLoading(true);
         this.hideError();
         this.hideNoDataMessage();
+        
+        // Add loading class to table for visual feedback
+        const tableContainer = document.querySelector('.table-container');
+        tableContainer.classList.add('loading');
 
         try {
             const data = await this.fetchPullRequests();
@@ -187,6 +191,7 @@ class GitHubPRDashboard {
             this.showError(`Failed to load pull requests: ${error.message}`);
         } finally {
             this.showLoading(false);
+            tableContainer.classList.remove('loading');
         }
     }
 
@@ -283,8 +288,6 @@ class GitHubPRDashboard {
 
     displayPullRequests(data) {
         const tbody = document.getElementById('prTableBody');
-        tbody.innerHTML = '';
-
         const pullRequests = data.search.edges.map(edge => new PullRequest(edge.node));
 
         if (pullRequests.length === 0) {
@@ -312,13 +315,30 @@ class GitHubPRDashboard {
             return new Date(a.updatedAt) - new Date(b.updatedAt);
         });
 
+        // Create new content in document fragment first
+        const fragment = document.createDocumentFragment();
+        const newRows = [];
+
         pullRequests.forEach(async (pr, index) => {
             const row = this.createPRRow(pr);
-            tbody.appendChild(row);
-
-            // Load CI status asynchronously for each PR
-            this.loadCIStatusForPR(pr, row, index);
+            fragment.appendChild(row);
+            newRows.push({ pr, row, index });
         });
+
+        // Fade out current content
+        tbody.style.opacity = '0.5';
+        
+        // Replace content after a brief delay for smooth transition
+        setTimeout(() => {
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+            tbody.style.opacity = '1';
+
+            // Load CI status asynchronously for each PR after content is visible
+            newRows.forEach(({ pr, row, index }) => {
+                this.loadCIStatusForPR(pr, row, index);
+            });
+        }, 150);
     }
 
     createPRRow(pr) {
@@ -560,7 +580,16 @@ class GitHubPRDashboard {
 
 
     showLoading(show) {
-        document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        const spinner = document.getElementById('loadingSpinner');
+        if (show) {
+            spinner.style.display = 'block';
+            // Force reflow to ensure display change is applied before opacity transition
+            spinner.offsetHeight;
+        } else {
+            setTimeout(() => {
+                spinner.style.display = 'none';
+            }, 200); // Match the CSS transition duration
+        }
     }
 
     showError(message) {

@@ -165,6 +165,12 @@ body {
     color: #0969da;
     font-size: 14px;
     font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.loading-inline[style*="block"] {
+    opacity: 1;
 }
 
 /* CI Status Container */
@@ -223,6 +229,24 @@ body {
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     overflow: hidden;
+    transition: opacity 0.3s ease;
+}
+
+.table-container.loading {
+    opacity: 0.7;
+    position: relative;
+}
+
+.table-container.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(1px);
+    z-index: 1;
 }
 
 table {
@@ -244,6 +268,10 @@ th, td {
 th {
     font-weight: 600;
     color: #24292f;
+}
+
+tbody {
+    transition: opacity 0.2s ease;
 }
 
 tbody tr:hover {
