@@ -507,6 +507,9 @@ class GitHubPRDashboard {
                 return [];
             }
 
+            // Update REST API rate limit from response headers
+            this.updateRestRateLimitInfo(response.headers);
+
             const data = await response.json();
             const failedChecks = [];
 
@@ -588,15 +591,61 @@ class GitHubPRDashboard {
             const resetString = resetDate ? ` (resets ${resetDate.toLocaleTimeString()})` : '';
 
             const rateLimitElement = document.getElementById('rateLimit');
-            rateLimitElement.textContent = `API: ${remaining}/${limit}${resetString}`;
+            rateLimitElement.textContent = `GraphQL: ${remaining}/${limit}${resetString}`;
             rateLimitElement.className = remaining < 100 ? 'rate-limit-low' : 'rate-limit-ok';
         }
     }
 
+    updateRestRateLimitInfo(headers) {
+        const remaining = headers.get('x-ratelimit-remaining');
+        const limit = headers.get('x-ratelimit-limit');
+        const resetTime = headers.get('x-ratelimit-reset');
+
+        if (remaining && limit) {
+            const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
+            const resetString = resetDate ? ` (resets ${resetDate.toLocaleTimeString()})` : '';
+
+            const restRateLimitElement = document.getElementById('restRateLimit');
+            restRateLimitElement.textContent = `REST: ${remaining}/${limit}${resetString}`;
+            restRateLimitElement.className = remaining < 100 ? 'rate-limit-low' : 'rate-limit-ok';
+        }
+    }
+
     updateLastRefreshed() {
+        this.lastRefreshTime = new Date();
+        this.updateRelativeTime();
+        
+        // Update relative time every minute
+        if (this.relativeTimeInterval) {
+            clearInterval(this.relativeTimeInterval);
+        }
+        this.relativeTimeInterval = setInterval(() => this.updateRelativeTime(), 60000);
+    }
+
+    updateRelativeTime() {
+        if (!this.lastRefreshTime) return;
+        
         const now = new Date();
-        const timeString = now.toLocaleTimeString();
-        document.getElementById('lastUpdated').textContent = `Last updated: ${timeString}`;
+        const diffMs = now - this.lastRefreshTime;
+        const diffMinutes = Math.floor(diffMs / 60000);
+        
+        let relativeText;
+        if (diffMinutes < 1) {
+            relativeText = 'just now';
+        } else if (diffMinutes === 1) {
+            relativeText = '1 minute ago';
+        } else if (diffMinutes < 60) {
+            relativeText = `${diffMinutes} minutes ago`;
+        } else {
+            const diffHours = Math.floor(diffMinutes / 60);
+            if (diffHours === 1) {
+                relativeText = '1 hour ago';
+            } else {
+                relativeText = `${diffHours} hours ago`;
+            }
+        }
+        
+        document.getElementById('lastUpdated').textContent = `Last updated: ${relativeText}`;
     }
 }
 

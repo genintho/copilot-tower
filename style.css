@@ -141,9 +141,15 @@ body {
     font-size: 14px;
 }
 
-#rateLimit {
-    font-size: 14px;
-    margin-right: 15px;
+.rate-limit-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.rate-limit-container span {
+    font-size: 12px;
 }
 
 .rate-limit-ok {
