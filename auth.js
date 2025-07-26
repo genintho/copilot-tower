@@ -243,6 +243,9 @@ class GitHubAuth {
       const radio = document.getElementById(`org-${this.selectedOrganization}`);
       if (radio) radio.checked = true;
     }
+
+    // Also populate the main dropdown
+    this.populateOrgDropdown(organizations);
   }
 
   handleOrgSelection() {
@@ -260,23 +263,23 @@ class GitHubAuth {
     this.showMainContent();
   }
 
-  createOrgDropdown() {
-    if (!this.organizations.length) return "";
+  populateOrgDropdown(organizations) {
+    const dropdown = document.getElementById("orgDropdown");
+    if (!dropdown) return;
 
-    const options = this.organizations
-      .map(
-        (org) =>
-          `<option value="${org.login}" ${org.login === this.selectedOrganization ? "selected" : ""}>
-                ${org.login}
-            </option>`,
-      )
-      .join("");
+    // Clear existing options
+    dropdown.innerHTML = "";
 
-    return `
-            <select id="orgDropdown" class="org-dropdown">
-                ${options}
-            </select>
-        `;
+    // Add options for each organization
+    organizations.forEach((org) => {
+      const option = document.createElement("option");
+      option.value = org.login;
+      option.textContent = org.login;
+      if (org.login === this.selectedOrganization) {
+        option.selected = true;
+      }
+      dropdown.appendChild(option);
+    });
   }
 
   updateOrgDropdown() {
@@ -289,7 +292,11 @@ class GitHubAuth {
   setupOrgDropdownEvents() {
     const dropdown = document.getElementById("orgDropdown");
     if (dropdown) {
-      dropdown.addEventListener("change", (e) => {
+      // Remove existing event listeners to avoid duplicates
+      dropdown.removeEventListener("change", this.handleOrgDropdownChange);
+      
+      // Bind the handler to maintain context
+      this.handleOrgDropdownChange = (e) => {
         const newOrg = e.target.value;
         this.selectedOrganization = newOrg;
         this.setOrgInURL(newOrg);
@@ -300,7 +307,9 @@ class GitHubAuth {
             detail: { organization: newOrg },
           }),
         );
-      });
+      };
+      
+      dropdown.addEventListener("change", this.handleOrgDropdownChange);
     }
   }
 
@@ -341,21 +350,9 @@ class GitHubAuth {
   }
 
   addOrgDropdownToControls() {
-    const controlsRight = document.querySelector(".controls-right");
-    const existingDropdown = document.getElementById("orgDropdown");
-
-    if (controlsRight && !existingDropdown && this.organizations.length > 0) {
-      const dropdownHTML = this.createOrgDropdown();
-      const dropdownContainer = document.createElement("div");
-      dropdownContainer.className = "org-dropdown-container";
-      dropdownContainer.innerHTML = `
-                <label for="orgDropdown">Organization:</label>
-                ${dropdownHTML}
-            `;
-
-      // Append to the right section (will appear after rate limits)
-      controlsRight.appendChild(dropdownContainer);
-
+    // Always populate dropdown if organizations are available
+    if (this.organizations.length > 0) {
+      this.populateOrgDropdown(this.organizations);
       this.setupOrgDropdownEvents();
     }
   }
