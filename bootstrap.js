@@ -28,14 +28,14 @@ window.addEventListener("organizationChanged", (event) => {
   window.main.show(orgName);
 });
 
-// // Refresh when tab comes back into focus
-// document.addEventListener("visibilitychange", () => {
-//     console.log("Visibility changed:", document.hidden);
-//     if (!document.hidden) {
-//         const organization = window.auth?.selectedOrganization;
-//         if (organization) {
-//             this.organization = organization; // Update instance organization
-//             this.loadPullRequests();
-//         }
-//     }
-// });
+// Refresh when tab comes back into focus
+document.addEventListener("visibilitychange", () => {
+  console.log("Visibility changed. hidden:", document.hidden);
+  if (document.hidden) {
+    return;
+  }
+  const organization = window.org.selectedOrganization;
+  if (organization) {
+      window.main.show(organization);
+  }
+});
