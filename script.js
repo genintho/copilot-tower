@@ -158,10 +158,6 @@ class GitHubPRDashboard {
   }
 
   setupEventListeners() {
-    document
-      .getElementById("refreshButton")
-      ?.addEventListener("click", () => this.loadPullRequests());
-
     // Refresh when tab comes back into focus
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && this.token && this.organization) {

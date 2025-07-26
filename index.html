@@ -8,8 +8,19 @@
   </head>
   <body>
     <div class="container">
+      <!-- Initial Loading State -->
+      <div id="initialLoading" class="auth-section">
+        <div class="auth-form">
+          <h2>Loading...</h2>
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+          </div>
+          <p>Please wait while we initialize the application.</p>
+        </div>
+      </div>
+
       <!-- Step 1: Token Authentication -->
-      <div id="tokenStep" class="auth-section">
+      <div id="tokenStep" class="auth-section hidden">
         <div class="auth-form">
           <h2>GitHub Authentication</h2>
           <label for="githubToken">GitHub Personal Access Token:</label>
@@ -54,11 +65,10 @@
         </div>
       </div>
 
-      <div class="main-content" id="mainContent" class="hidden">
+      <div class="main-content hidden" id="mainContent">
         <div class="controls">
           <div class="controls-left">
             <div class="refresh-section">
-              <button id="refreshButton">🔄 Refresh Data</button>
               <button id="clearDataButton" class="warning">🗑️ Clear Data</button>
               <span id="loadingSpinner" class="loading-inline" style="display: none"
                 >Loading...</span

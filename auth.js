@@ -306,6 +306,7 @@ class GitHubAuth {
 
   showTokenStep() {
     this.currentStep = 1;
+    document.getElementById("initialLoading")?.classList.add("hidden");
     document.getElementById("tokenStep")?.classList.remove("hidden");
     document.getElementById("orgStep")?.classList.add("hidden");
     document.getElementById("mainContent")?.classList.add("hidden");
@@ -313,12 +314,14 @@ class GitHubAuth {
 
   showOrganizationSelection() {
     this.currentStep = 2;
+    document.getElementById("initialLoading")?.classList.add("hidden");
     document.getElementById("tokenStep")?.classList.add("hidden");
     document.getElementById("orgStep")?.classList.remove("hidden");
     document.getElementById("mainContent")?.classList.add("hidden");
   }
 
   showMainContent() {
+    document.getElementById("initialLoading")?.classList.add("hidden");
     document.getElementById("tokenStep")?.classList.add("hidden");
     document.getElementById("orgStep")?.classList.add("hidden");
     document.getElementById("mainContent")?.classList.remove("hidden");
@@ -361,8 +364,7 @@ class GitHubAuth {
     this.token = null;
     this.selectedOrganization = null;
     this.organizations = [];
-    localStorage.removeItem("github_token");
-    localStorage.removeItem("github_orgs_cache");
+    localStorage.clear();
     this.setOrgInURL(null);
     this.showTokenStep();
   }

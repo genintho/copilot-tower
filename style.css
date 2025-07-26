@@ -232,6 +232,27 @@ body {
   display: none !important;
 }
 
+/* Loading Spinner */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #0969da;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Controls */
 .controls {
   display: flex;
@@ -262,21 +283,6 @@ body {
   gap: 10px;
 }
 
-#refreshButton {
-  background-color: #0969da;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-#refreshButton:hover {
-  background-color: #0860ca;
-}
 
 #clearDataButton {
   background-color: #dc3545;
