@@ -8,17 +8,6 @@
   </head>
   <body>
     <div class="container">
-      <!-- Initial Loading State -->
-      <div id="initialLoading" class="auth-section">
-        <div class="auth-form">
-          <h2>Loading...</h2>
-          <div class="loading-spinner">
-            <div class="spinner"></div>
-          </div>
-          <p>Please wait while we initialize the application.</p>
-        </div>
-      </div>
-
       <!-- Step 1: Token Authentication -->
       <div id="tokenStep" class="auth-section hidden">
         <div class="auth-form">
@@ -34,7 +23,6 @@
             <button id="clearToken" class="secondary">Clear Token</button>
           </div>
           <div id="authError" class="error" style="display: none"></div>
-          <div id="authLoading" class="loading" style="display: none"></div>
         </div>
         <div class="token-info">
           <p>
@@ -56,12 +44,6 @@
           <div id="orgList" class="org-list">
             <!-- Organizations will be populated here -->
           </div>
-          <div class="button-group">
-            <button id="orgBackButton" class="secondary">Back</button>
-            <button id="selectOrgButton">Continue</button>
-          </div>
-          <div id="authError" class="error" style="display: none"></div>
-          <div id="authLoading" class="loading" style="display: none"></div>
         </div>
       </div>
 
@@ -123,6 +105,8 @@
 
     <script src="github.js"></script>
     <script src="auth.js"></script>
+    <script src="org.js"></script>
     <script src="script.js"></script>
+    <script src="bootstrap.js"></script>
   </body>
 </html>

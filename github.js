@@ -5,14 +5,6 @@ class GitHubAPI {
   }
 
   /**
-   * Check if a valid token exists
-   * @returns {boolean} - True if token exists
-   */
-  hasValidToken() {
-    return !!localStorage.getItem("github_token");
-  }
-
-  /**
    * Universal query method for GitHub API calls
    * @param {string} endpoint - API endpoint (relative for REST, full URL for GraphQL)
    * @param {Object} options - Request options
@@ -23,11 +15,6 @@ class GitHubAPI {
    * @returns {Promise<Object>} - Response data
    */
   async query(endpoint, options = {}) {
-    const token = localStorage.getItem("github_token");
-    if (!token) {
-      throw new Error("No GitHub token available. Please authenticate first.");
-    }
-
     const {
       method = "GET",
       body = null,
@@ -41,7 +28,7 @@ class GitHubAPI {
       : `${this.restEndpoint}${endpoint}`;
 
     const headers = {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${window.auth.token}`,
       ...(isGraphQL
         ? { "Content-Type": "application/json" }
         : { Accept: "application/vnd.github.v3+json" }),
@@ -74,48 +61,32 @@ class GitHubAPI {
   }
 
   /**
-   * Validate a GitHub personal access token
-   * @param {string} [token] - Token to validate (defaults to instance token)
-   * @returns {Promise<boolean>} - True if token is valid
-   */
-  async validateToken(token = null) {
-    const tokenToValidate = token || localStorage.getItem("github_token");
-    if (!tokenToValidate) {
-      return false;
-    }
-
-    try {
-      // Temporarily store the provided token for validation
-      const originalToken = localStorage.getItem("github_token");
-      localStorage.setItem("github_token", tokenToValidate);
-
-      await this.query("/user");
-
-      // Restore original token
-      if (originalToken) {
-        localStorage.setItem("github_token", originalToken);
-      } else {
-        localStorage.removeItem("github_token");
-      }
-      return true;
-    } catch (error) {
-      // Restore original token on error
-      const originalToken = localStorage.getItem("github_token");
-      if (originalToken && originalToken !== tokenToValidate) {
-        localStorage.setItem("github_token", originalToken);
-      }
-      console.error("Token validation failed:", error);
-      return false;
-    }
-  }
-
-  /**
    * Fetch user's organizations
    * @returns {Promise<Array>} - Array of organization objects
    */
   async getUserOrganizations() {
+    const cached = localStorage.getItem("github_orgs_cache");
+    if (cached) {
+      const data = JSON.parse(cached);
+      const now = Date.now();
+
+      if (data.organizations && now < data.expiresAt) {
+        return data.organizations;
+      }
+    }
+    // Cache expired, remove it
+    localStorage.removeItem("github_orgs_cache");
+
     try {
-      return await this.query("/user/orgs");
+      const res = await this.query("/user/orgs");
+      const cacheData = {
+        organizations: res,
+        cachedAt: Date.now(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      };
+
+      localStorage.setItem("github_orgs_cache", JSON.stringify(cacheData));
+      return res;
     } catch (error) {
       console.error("Error fetching organizations:", error);
       throw new Error(

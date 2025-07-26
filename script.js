@@ -135,39 +135,50 @@ class PullRequest {
 
 class GitHubPRDashboard {
   constructor() {
-    this.apiEndpoint = "https://api.github.com/graphql";
-    this.token = null;
     this.organization = null;
-    this.init();
-  }
-
-  init() {
-    this.setupEventListeners();
-    // Wait for authentication to complete
-    window.addEventListener("authComplete", (event) => {
-      this.token = event.detail.token;
-      this.organization = event.detail.organization;
-      this.loadPullRequests();
-    });
-
-    // Listen for organization changes
-    window.addEventListener("organizationChanged", (event) => {
-      this.organization = event.detail.organization;
-      this.loadPullRequests();
+    document.getElementById("orgDropdown").addEventListener("change", (e) => {
+      const newOrg = e.target.value;
+      window.dispatchEvent(
+        new CustomEvent("organizationChanged", {
+          detail: { organization: newOrg },
+        }),
+      );
     });
   }
 
-  setupEventListeners() {
-    // Refresh when tab comes back into focus
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && this.token && this.organization) {
-        this.loadPullRequests();
-      }
+  hide() {
+    document.getElementById("mainContent")?.classList.add("hidden");
+  }
+  show(org) {
+    console.log("Showing main content for organization:", org);
+    this.organization = org;
+    window.auth.hide();
+    window.org.hide();
+    document.getElementById("mainContent")?.classList.remove("hidden");
+    this.loadPullRequests();
+    this.populateOrgDropdown(org);
+  }
+
+  populateOrgDropdown(selectOrganization) {
+    const dropdown = document.getElementById("orgDropdown");
+    dropdown.innerHTML = "";
+
+    window.githubAPI.getUserOrganizations().then((orgs) => {
+      orgs.forEach((org) => {
+        const option = document.createElement("option");
+        option.value = org.login;
+        option.textContent = org.login;
+        if (org.login === selectOrganization) {
+          option.selected = true;
+        }
+        dropdown.appendChild(option);
+      });
     });
   }
 
   async loadPullRequests() {
-    if (!this.token || !this.organization) {
+    console.log("Loading pull requests for organization:", this.organization);
+    if (!this.organization) {
       console.warn("Cannot load pull requests: missing token or organization");
       return;
     }
@@ -206,6 +217,7 @@ class GitHubPRDashboard {
   }
 
   displayPullRequests(data) {
+    console.log("Displaying pull requests:", data);
     const tbody = document.getElementById("prTableBody");
     const pullRequests = data.search.edges.map(
       (edge) => new PullRequest(edge.node),
@@ -515,6 +527,7 @@ class GitHubPRDashboard {
   }
 
   showNoDataMessage() {
+    document.getElementById("prTableBody").innerHTML = "";
     document.getElementById("noPrsMessage").style.display = "block";
   }
 
@@ -586,8 +599,4 @@ class GitHubPRDashboard {
       `Last updated: ${relativeText}`;
   }
 }
-
-// Initialize the dashboard when the page loads
-document.addEventListener("DOMContentLoaded", () => {
-  new GitHubPRDashboard();
-});
+window.main = new GitHubPRDashboard();

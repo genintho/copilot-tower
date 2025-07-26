@@ -92,7 +92,6 @@ body {
 }
 
 #clearToken,
-#orgBackButton,
 .secondary {
   background-color: #f6f8fa;
   color: #24292f;
@@ -100,7 +99,6 @@ body {
 }
 
 #clearToken:hover,
-#orgBackButton:hover,
 .secondary:hover {
   background-color: #f3f4f6;
 }
