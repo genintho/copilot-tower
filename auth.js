@@ -84,7 +84,9 @@ class GitHubAuth {
     }
 
     try {
-      const organizations = await window.githubAPI.getUserOrganizations(this.token);
+      const organizations = await window.githubAPI.getUserOrganizations(
+        this.token,
+      );
       this.cacheOrganizations(organizations);
       this.organizations = organizations;
       return organizations;

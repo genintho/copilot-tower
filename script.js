@@ -202,7 +202,7 @@ class GitHubPRDashboard {
     return await window.githubAPI.fetchPullRequests(
       this.token,
       this.organization,
-      (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo)
+      (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
     );
   }
 
@@ -467,7 +467,7 @@ class GitHubPRDashboard {
       owner,
       repo,
       sha,
-      (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo)
+      (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
     );
   }
 
@@ -534,16 +534,18 @@ class GitHubPRDashboard {
   handleRateLimitInfo(rateLimitInfo) {
     if (!rateLimitInfo) return;
 
-    const elementId = rateLimitInfo.type === "graphql" ? "rateLimit" : "restRateLimit";
+    const elementId =
+      rateLimitInfo.type === "graphql" ? "rateLimit" : "restRateLimit";
     const prefix = rateLimitInfo.type === "graphql" ? "GraphQL" : "REST";
-    
+
     const rateLimitElement = document.getElementById(elementId);
     if (rateLimitElement) {
       rateLimitElement.textContent = `${prefix}: ${rateLimitInfo.remaining}/${rateLimitInfo.limit}${rateLimitInfo.resetString}`;
-      rateLimitElement.className = rateLimitInfo.isLow ? "rate-limit-low" : "rate-limit-ok";
+      rateLimitElement.className = rateLimitInfo.isLow
+        ? "rate-limit-low"
+        : "rate-limit-ok";
     }
   }
-
 
   updateLastRefreshed() {
     this.lastRefreshTime = new Date();
