@@ -26,6 +26,14 @@ body {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   text-align: center;
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+.auth-section h2 {
+  margin-bottom: 20px;
+  color: #24292f;
+  font-size: 24px;
 }
 
 .auth-form {
@@ -54,33 +62,46 @@ body {
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
 }
 
+.button-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
 .auth-form button {
-  margin: 0 5px;
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  min-width: 120px;
 }
 
-#saveToken {
+#saveToken,
+#selectOrgButton {
   background-color: #0969da;
   color: white;
 }
 
-#saveToken:hover {
+#saveToken:hover,
+#selectOrgButton:hover {
   background-color: #0860ca;
 }
 
-#clearToken {
+#clearToken,
+#orgBackButton,
+.secondary {
   background-color: #f6f8fa;
   color: #24292f;
   border: 1px solid #d0d7de;
 }
 
-#clearToken:hover {
+#clearToken:hover,
+#orgBackButton:hover,
+.secondary:hover {
   background-color: #f3f4f6;
 }
 
@@ -106,6 +127,108 @@ body {
 
 .token-info a:hover {
   text-decoration: underline;
+}
+
+/* Organization Selection */
+.org-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  margin: 20px 0;
+  background: #f6f8fa;
+}
+
+.org-item {
+  border-bottom: 1px solid #d0d7de;
+  transition: background-color 0.2s;
+}
+
+.org-item:last-child {
+  border-bottom: none;
+}
+
+.org-item:hover {
+  background-color: #f3f4f6;
+}
+
+.org-item input[type="radio"] {
+  display: none;
+}
+
+.org-item label {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  cursor: pointer;
+  text-align: left;
+  gap: 15px;
+  transition: background-color 0.2s;
+}
+
+.org-item input[type="radio"]:checked + label {
+  background-color: #dbeafe;
+  border-left: 4px solid #0969da;
+}
+
+.org-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid #d0d7de;
+}
+
+.org-info {
+  flex: 1;
+}
+
+.org-info strong {
+  display: block;
+  color: #24292f;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.org-info p {
+  color: #656d76;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Organization Dropdown */
+.org-dropdown-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.org-dropdown-container label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292f;
+  white-space: nowrap;
+}
+
+.org-dropdown {
+  padding: 8px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.org-dropdown:focus {
+  outline: none;
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+}
+
+/* Hidden class for multi-step UI */
+.hidden {
+  display: none !important;
 }
 
 /* Controls */

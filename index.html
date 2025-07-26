@@ -3,26 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GitHub PR Dashboard - Hoverinc</title>
+    <title>GitHub PR Dashboard</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="container">
-      <div class="auth-section" id="authSection">
+      <!-- Step 1: Token Authentication -->
+      <div id="tokenStep" class="auth-section">
         <div class="auth-form">
+          <h2>GitHub Authentication</h2>
           <label for="githubToken">GitHub Personal Access Token:</label>
           <input
             type="password"
             id="githubToken"
             placeholder="Enter your GitHub token"
           />
-          <button id="saveToken">Save Token</button>
-          <button id="clearToken">Clear Token</button>
+          <div class="button-group">
+            <button id="saveToken">Continue</button>
+            <button id="clearToken" class="secondary">Clear Token</button>
+          </div>
+          <div id="authError" class="error" style="display: none"></div>
+          <div id="authLoading" class="loading" style="display: none"></div>
         </div>
         <div class="token-info">
           <p>
             You need a GitHub Personal Access Token with
-            <code>repo</code> scope to access organization repositories.
+            <code>repo</code> and <code>read:org</code> scopes to access
+            organization repositories.
           </p>
           <a href="https://github.com/settings/tokens" target="_blank"
             >Create Token</a
@@ -30,7 +37,24 @@
         </div>
       </div>
 
-      <div class="main-content" id="mainContent" style="display: none">
+      <!-- Step 2: Organization Selection -->
+      <div id="orgStep" class="auth-section hidden">
+        <div class="auth-form">
+          <h2>Select Organization</h2>
+          <p>Choose the organization you want to view pull requests for:</p>
+          <div id="orgList" class="org-list">
+            <!-- Organizations will be populated here -->
+          </div>
+          <div class="button-group">
+            <button id="orgBackButton" class="secondary">Back</button>
+            <button id="selectOrgButton">Continue</button>
+          </div>
+          <div id="authError" class="error" style="display: none"></div>
+          <div id="authLoading" class="loading" style="display: none"></div>
+        </div>
+      </div>
+
+      <div class="main-content" id="mainContent" class="hidden">
         <div class="controls">
           <button id="refreshButton">🔄 Refresh Data</button>
           <span id="loadingSpinner" class="loading-inline" style="display: none"
@@ -64,11 +88,12 @@
         </div>
 
         <div id="noPrsMessage" class="no-data" style="display: none">
-          <p>No assigned pull requests found in the hoverinc organization.</p>
+          <p id="noPrsText">No assigned pull requests found.</p>
         </div>
       </div>
     </div>
 
+    <script src="auth.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

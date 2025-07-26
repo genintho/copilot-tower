@@ -4,29 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a static HTML/JavaScript application that displays GitHub pull requests assigned to the user within the `hoverinc` organization. The application is a client-side only dashboard with no build process or server dependencies.
+This is a static HTML/JavaScript application that displays GitHub pull requests assigned to the user within any GitHub organization they have access to. The application is a client-side only dashboard with no build process or server dependencies.
 
 ## Architecture
 
 ### Core Components
 
-- **`index.html`**: Single-page application structure with authentication form and PR data table
-- **`script.js`**: Main application logic in `GitHubPRDashboard` class
+- **`index.html`**: Single-page application structure with multi-step authentication and PR data table
+- **`auth.js`**: Authentication and organization management in `GitHubAuth` class
+- **`script.js`**: Main dashboard logic in `GitHubPRDashboard` class
 - **`style.css`**: Responsive styling for the dashboard interface
 
 ### Application Flow
 
-1. **Authentication**: User enters GitHub Personal Access Token (stored in localStorage)
-2. **Data Fetching**: GraphQL query to GitHub API: `is:pr is:open org:hoverinc assignee:@me`
-3. **Display**: Renders PR table with columns: Repository, Author (avatar), PR Title, Up to Date status, PR Status, CI Status
-4. **Rate Limiting**: Displays GitHub API quota usage in real-time
+1. **Token Authentication**: User enters GitHub Personal Access Token (stored in localStorage)
+2. **Organization Selection**: System fetches user's organizations via REST API, user selects one
+3. **Data Fetching**: GraphQL query to GitHub API: `is:pr is:open org:{selected-org} assignee:@me`
+4. **Display**: Renders PR table with columns: Repository, Author (avatar), PR Title, Up to Date status, PR Status, CI Status
+5. **Organization Switching**: Dropdown allows switching between organizations with URL parameter updates
+6. **Rate Limiting**: Displays GitHub API quota usage in real-time
 
 ### Key Technical Details
 
-- **GitHub API**: Uses GraphQL endpoint at `https://api.github.com/graphql`
-- **Authentication**: Requires GitHub Personal Access Token with `repo` scope
+- **GitHub APIs**:
+  - GraphQL endpoint at `https://api.github.com/graphql` for PR data
+  - REST API at `https://api.github.com` for organization listing
+- **Authentication**: Requires GitHub Personal Access Token with `repo` and `read:org` scopes
+- **Organization Caching**: 24-hour cache for user organizations to minimize API calls
+- **URL Parameters**: Organization selection stored in URL (`?org=orgname`) for bookmarking
+- **State Management**: Event-driven communication between auth.js and script.js
 - **Data Structure**: Fetches PR data including commit status, check suites, and mergeable state
-- **State Management**: Simple class-based approach with localStorage for token persistence
 - **No Framework**: Pure JavaScript/HTML/CSS - no build tools or dependencies
 
 ## Development Commands
@@ -52,12 +59,16 @@ npm run format:check
 
 ## Key Implementation Notes
 
-- The application targets only the `hoverinc` organization (hardcoded in GraphQL query)
-- CI status parsing handles both `statusCheckRollup` and individual `checkSuites`
-- Rate limit monitoring uses GitHub response headers (`x-ratelimit-remaining`, `x-ratelimit-limit`)
-- UI shows loading states and error handling for API failures
-- Responsive design with full-width table layout
-- Avatar images loaded directly from GitHub CDN via GraphQL response
+- **Multi-step Authentication**: Two-step process (token → organization selection)
+- **Dynamic Organization Support**: Works with any GitHub organization the user has access to
+- **Organization Caching**: REST API calls cached for 24 hours to reduce API usage
+- **URL State Management**: Selected organization stored in URL parameters for bookmarking
+- **Event-driven Architecture**: Custom events for communication between auth and dashboard modules
+- **CI Status Parsing**: Handles both `statusCheckRollup` and individual `checkSuites`
+- **Rate Limit Monitoring**: Uses GitHub response headers (`x-ratelimit-remaining`, `x-ratelimit-limit`)
+- **UI States**: Loading states and error handling for API failures
+- **Responsive Design**: Full-width table layout with mobile compatibility
+- **Avatar Images**: Loaded directly from GitHub CDN via GraphQL response
 
 ## GraphQL Query Structure
 

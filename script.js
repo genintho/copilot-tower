@@ -135,101 +135,70 @@ class PullRequest {
 
 class GitHubPRDashboard {
   constructor() {
-    this.token = localStorage.getItem("github_token");
     this.apiEndpoint = "https://api.github.com/graphql";
+    this.token = null;
+    this.organization = null;
     this.init();
   }
 
   init() {
     this.setupEventListeners();
-    this.checkAuthentication();
+    // Wait for authentication to complete
+    window.addEventListener("authComplete", (event) => {
+      this.token = event.detail.token;
+      this.organization = event.detail.organization;
+      this.loadPullRequests();
+    });
+
+    // Listen for organization changes
+    window.addEventListener("organizationChanged", (event) => {
+      this.organization = event.detail.organization;
+      this.loadPullRequests();
+    });
   }
 
   setupEventListeners() {
     document
-      .getElementById("saveToken")
-      .addEventListener("click", () => this.saveToken());
-    document
-      .getElementById("clearToken")
-      .addEventListener("click", () => this.clearToken());
-    document
       .getElementById("refreshButton")
-      .addEventListener("click", () => this.loadPullRequests());
-
-    // Allow Enter key to save token
-    document.getElementById("githubToken").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") this.saveToken();
-    });
+      ?.addEventListener("click", () => this.loadPullRequests());
 
     // Refresh when tab comes back into focus
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && this.token) {
+      if (!document.hidden && this.token && this.organization) {
         this.loadPullRequests();
       }
     });
   }
 
-  checkAuthentication() {
-    if (this.token) {
-      this.showMainContent();
-      this.loadPullRequests();
-    } else {
-      this.showAuthSection();
-    }
-  }
-
-  saveToken() {
-    const tokenInput = document.getElementById("githubToken");
-    const token = tokenInput.value.trim();
-
-    if (!token) {
-      this.showError("Please enter a valid GitHub token");
+  async loadPullRequests() {
+    if (!this.token || !this.organization) {
+      console.warn("Cannot load pull requests: missing token or organization");
       return;
     }
 
-    this.token = token;
-    localStorage.setItem("github_token", token);
-    tokenInput.value = "";
-
-    this.showMainContent();
-    this.loadPullRequests();
-  }
-
-  clearToken() {
-    this.token = null;
-    localStorage.removeItem("github_token");
-    this.showAuthSection();
-  }
-
-  showAuthSection() {
-    document.getElementById("authSection").style.display = "block";
-    document.getElementById("mainContent").style.display = "none";
-  }
-
-  showMainContent() {
-    document.getElementById("authSection").style.display = "none";
-    document.getElementById("mainContent").style.display = "block";
-  }
-
-  async loadPullRequests() {
     this.showLoading(true);
     this.hideError();
     this.hideNoDataMessage();
 
     // Add loading class to table for visual feedback
     const tableContainer = document.querySelector(".table-container");
-    tableContainer.classList.add("loading");
+    if (tableContainer) {
+      tableContainer.classList.add("loading");
+    }
 
     try {
       const data = await this.fetchPullRequests();
       this.displayPullRequests(data);
       this.updateLastRefreshed();
+      this.updateNoPrsMessage();
     } catch (error) {
       console.error("Error loading pull requests:", error);
       this.showError(`Failed to load pull requests: ${error.message}`);
     } finally {
       this.showLoading(false);
-      tableContainer.classList.remove("loading");
+      if (tableContainer) {
+        tableContainer.classList.remove("loading");
+      }
     }
   }
 
@@ -237,7 +206,7 @@ class GitHubPRDashboard {
     const query = `
             query GetAssignedPRs {
                 search(
-                    query: "is:pr is:open org:hoverinc assignee:@me"
+                    query: "is:pr is:open org:${this.organization} assignee:@me"
                     type: ISSUE
                     first: 100
                 ) {
@@ -682,6 +651,13 @@ class GitHubPRDashboard {
 
   hideNoDataMessage() {
     document.getElementById("noPrsMessage").style.display = "none";
+  }
+
+  updateNoPrsMessage() {
+    const noPrsText = document.getElementById("noPrsText");
+    if (noPrsText && this.organization) {
+      noPrsText.textContent = `No assigned pull requests found in the ${this.organization} organization.`;
+    }
   }
 
   updateRateLimitInfo(headers) {
