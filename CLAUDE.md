@@ -38,6 +38,18 @@ npx serve .
 # or simply open index.html in browser
 ```
 
+### Code Formatting
+
+The project uses Prettier for consistent code formatting:
+
+```bash
+# Format all files
+npm run format
+
+# Check if files are formatted correctly
+npm run format:check
+```
+
 ## Key Implementation Notes
 
 - The application targets only the `hoverinc` organization (hardcoded in GraphQL query)
@@ -50,6 +62,7 @@ npx serve .
 ## GraphQL Query Structure
 
 The main query fetches:
+
 - Basic PR info (title, state, mergeable status)
 - Repository and author details
 - Latest commit with CI check status

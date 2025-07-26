@@ -1,64 +1,74 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GitHub PR Dashboard - Hoverinc</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="container">
+      <div class="auth-section" id="authSection">
+        <div class="auth-form">
+          <label for="githubToken">GitHub Personal Access Token:</label>
+          <input
+            type="password"
+            id="githubToken"
+            placeholder="Enter your GitHub token"
+          />
+          <button id="saveToken">Save Token</button>
+          <button id="clearToken">Clear Token</button>
+        </div>
+        <div class="token-info">
+          <p>
+            You need a GitHub Personal Access Token with
+            <code>repo</code> scope to access organization repositories.
+          </p>
+          <a href="https://github.com/settings/tokens" target="_blank"
+            >Create Token</a
+          >
+        </div>
+      </div>
 
-        <div class="auth-section" id="authSection">
-            <div class="auth-form">
-                <label for="githubToken">GitHub Personal Access Token:</label>
-                <input type="password" id="githubToken" placeholder="Enter your GitHub token">
-                <button id="saveToken">Save Token</button>
-                <button id="clearToken">Clear Token</button>
-            </div>
-            <div class="token-info">
-                <p>You need a GitHub Personal Access Token with <code>repo</code> scope to access organization repositories.</p>
-                <a href="https://github.com/settings/tokens" target="_blank">Create Token</a>
-            </div>
+      <div class="main-content" id="mainContent" style="display: none">
+        <div class="controls">
+          <button id="refreshButton">🔄 Refresh Data</button>
+          <span id="loadingSpinner" class="loading-inline" style="display: none"
+            >Loading...</span
+          >
+          <div class="rate-limit-container">
+            <span id="rateLimit"></span>
+            <span id="restRateLimit"></span>
+          </div>
+          <span id="lastUpdated"></span>
         </div>
 
-        <div class="main-content" id="mainContent" style="display: none;">
-            <div class="controls">
-                <button id="refreshButton">🔄 Refresh Data</button>
-                <span id="loadingSpinner" class="loading-inline" style="display: none;">Loading...</span>
-                <div class="rate-limit-container">
-                    <span id="rateLimit"></span>
-                    <span id="restRateLimit"></span>
-                </div>
-                <span id="lastUpdated"></span>
-            </div>
+        <div id="errorMessage" class="error" style="display: none"></div>
 
-            <div id="errorMessage" class="error" style="display: none;"></div>
-
-            <div class="table-container">
-                <table id="prTable">
-                    <thead>
-                        <tr>
-                            <th>Repository</th>
-                            <th>Author</th>
-                            <th>PR Title</th>
-                            <th>Up to Date</th>
-                            <th>Status</th>
-                            <th>CI Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="prTableBody">
-                        <!-- PR data will be inserted here -->
-                    </tbody>
-                </table>
-            </div>
-
-            <div id="noPrsMessage" class="no-data" style="display: none;">
-                <p>No assigned pull requests found in the hoverinc organization.</p>
-            </div>
+        <div class="table-container">
+          <table id="prTable">
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Author</th>
+                <th>PR Title</th>
+                <th>Up to Date</th>
+                <th>Status</th>
+                <th>CI Status</th>
+              </tr>
+            </thead>
+            <tbody id="prTableBody">
+              <!-- PR data will be inserted here -->
+            </tbody>
+          </table>
         </div>
+
+        <div id="noPrsMessage" class="no-data" style="display: none">
+          <p>No assigned pull requests found in the hoverinc organization.</p>
+        </div>
+      </div>
     </div>
 
     <script src="script.js"></script>
-</body>
+  </body>
 </html>
