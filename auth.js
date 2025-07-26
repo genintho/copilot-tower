@@ -72,18 +72,7 @@ class GitHubAuth {
   }
 
   async validateToken(token) {
-    try {
-      const response = await fetch(`${this.apiEndpoint}/user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
-      return response.ok;
-    } catch (error) {
-      console.error("Token validation failed:", error);
-      return false;
-    }
+    return await window.githubAPI.validateToken(token);
   }
 
   async getUserOrganizations() {
@@ -95,28 +84,12 @@ class GitHubAuth {
     }
 
     try {
-      const response = await fetch(`${this.apiEndpoint}/user/orgs`, {
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch organizations: ${response.statusText}`,
-        );
-      }
-
-      const organizations = await response.json();
+      const organizations = await window.githubAPI.getUserOrganizations(this.token);
       this.cacheOrganizations(organizations);
       this.organizations = organizations;
       return organizations;
     } catch (error) {
-      console.error("Error fetching organizations:", error);
-      this.showError(
-        "Failed to fetch organizations. Please check your token permissions.",
-      );
+      this.showError(error.message);
       return [];
     }
   }
@@ -294,7 +267,7 @@ class GitHubAuth {
     if (dropdown) {
       // Remove existing event listeners to avoid duplicates
       dropdown.removeEventListener("change", this.handleOrgDropdownChange);
-      
+
       // Bind the handler to maintain context
       this.handleOrgDropdownChange = (e) => {
         const newOrg = e.target.value;
@@ -308,7 +281,7 @@ class GitHubAuth {
           }),
         );
       };
-      
+
       dropdown.addEventListener("change", this.handleOrgDropdownChange);
     }
   }
@@ -368,15 +341,15 @@ class GitHubAuth {
 
   clearAllData() {
     const confirmed = confirm(
-      "Are you sure you want to clear all stored data? This will log you out and clear all cached information."
+      "Are you sure you want to clear all stored data? This will log you out and clear all cached information.",
     );
 
     if (!confirmed) {
       return;
     }
 
-      localStorage.clear();
-      window.location.reload();
+    localStorage.clear();
+    window.location.reload();
   }
 
   showError(message) {

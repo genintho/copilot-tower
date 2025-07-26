@@ -199,96 +199,11 @@ class GitHubPRDashboard {
   }
 
   async fetchPullRequests() {
-    const query = `
-            query GetAssignedPRs {
-                search(
-                    query: "is:pr is:open org:${this.organization} assignee:@me"
-                    type: ISSUE
-                    first: 100
-                ) {
-                    issueCount
-                    edges {
-                        node {
-                            ... on PullRequest {
-                                title
-                                url
-                                number
-                                state
-                                isDraft
-                                mergeable
-                                mergeStateStatus
-                                headRefName
-                                baseRefName
-                                createdAt
-                                updatedAt
-                                repository {
-                                    name
-                                    nameWithOwner
-                                }
-                                author {
-                                    login
-                                    avatarUrl
-                                }
-                                commits(last: 1) {
-                                    nodes {
-                                        commit {
-                                            oid
-                                            statusCheckRollup {
-                                                state
-                                            }
-                                        }
-                                    }
-                                }
-                                assignees(first: 10) {
-                                    nodes {
-                                        login
-                                    }
-                                }
-                                reviews(first: 10) {
-                                    nodes {
-                                        state
-                                        author {
-                                            login
-                                            avatarUrl
-                                        }
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-                }
-            }
-        `;
-
-    const response = await fetch(this.apiEndpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error(
-          "Invalid or expired GitHub token. Please check your token and try again.",
-        );
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-
-    // Update rate limit info from response headers
-    this.updateRateLimitInfo(response.headers);
-
-    if (result.errors) {
-      throw new Error(result.errors.map((e) => e.message).join(", "));
-    }
-
-    return result.data;
+    return await window.githubAPI.fetchPullRequests(
+      this.token,
+      this.organization,
+      (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo)
+    );
   }
 
   displayPullRequests(data) {
@@ -547,53 +462,13 @@ class GitHubPRDashboard {
   }
 
   async fetchFailedChecks(owner, repo, sha) {
-    try {
-      // Use REST API to get check runs for the commit
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/commits/${sha}/check-runs`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        },
-      );
-
-      if (!response.ok) {
-        console.warn(`Failed to fetch check runs for ${owner}/${repo}@${sha}`);
-        return [];
-      }
-
-      // Update REST API rate limit from response headers
-      this.updateRestRateLimitInfo(response.headers);
-
-      const data = await response.json();
-      const failedChecks = [];
-
-      if (data.check_runs) {
-        data.check_runs.forEach((checkRun) => {
-          if (checkRun.conclusion === "failure") {
-            let checkName = checkRun.name;
-
-            // Clean up Hyperion check names
-            checkName = checkName.replace(/^rails-ci\s\/ /, "");
-
-            failedChecks.push({
-              name: checkName,
-              url: checkRun.html_url || checkRun.details_url || "#",
-            });
-          }
-        });
-      }
-
-      return failedChecks;
-    } catch (error) {
-      console.warn(
-        `Error fetching failed checks for ${owner}/${repo}@${sha}:`,
-        error,
-      );
-      return [];
-    }
+    return await window.githubAPI.fetchFailedChecks(
+      this.token,
+      owner,
+      repo,
+      sha,
+      (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo)
+    );
   }
 
   updateCICell(row, ciStatus) {
@@ -656,41 +531,19 @@ class GitHubPRDashboard {
     }
   }
 
-  updateRateLimitInfo(headers) {
-    const remaining = headers.get("x-ratelimit-remaining");
-    const limit = headers.get("x-ratelimit-limit");
-    const resetTime = headers.get("x-ratelimit-reset");
+  handleRateLimitInfo(rateLimitInfo) {
+    if (!rateLimitInfo) return;
 
-    if (remaining && limit) {
-      const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
-      const resetString = resetDate
-        ? ` (resets ${resetDate.toLocaleTimeString()})`
-        : "";
-
-      const rateLimitElement = document.getElementById("rateLimit");
-      rateLimitElement.textContent = `GraphQL: ${remaining}/${limit}${resetString}`;
-      rateLimitElement.className =
-        remaining < 100 ? "rate-limit-low" : "rate-limit-ok";
+    const elementId = rateLimitInfo.type === "graphql" ? "rateLimit" : "restRateLimit";
+    const prefix = rateLimitInfo.type === "graphql" ? "GraphQL" : "REST";
+    
+    const rateLimitElement = document.getElementById(elementId);
+    if (rateLimitElement) {
+      rateLimitElement.textContent = `${prefix}: ${rateLimitInfo.remaining}/${rateLimitInfo.limit}${rateLimitInfo.resetString}`;
+      rateLimitElement.className = rateLimitInfo.isLow ? "rate-limit-low" : "rate-limit-ok";
     }
   }
 
-  updateRestRateLimitInfo(headers) {
-    const remaining = headers.get("x-ratelimit-remaining");
-    const limit = headers.get("x-ratelimit-limit");
-    const resetTime = headers.get("x-ratelimit-reset");
-
-    if (remaining && limit) {
-      const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
-      const resetString = resetDate
-        ? ` (resets ${resetDate.toLocaleTimeString()})`
-        : "";
-
-      const restRateLimitElement = document.getElementById("restRateLimit");
-      restRateLimitElement.textContent = `REST: ${remaining}/${limit}${resetString}`;
-      restRateLimitElement.className =
-        remaining < 100 ? "rate-limit-low" : "rate-limit-ok";
-    }
-  }
 
   updateLastRefreshed() {
     this.lastRefreshTime = new Date();
