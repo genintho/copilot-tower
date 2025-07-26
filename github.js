@@ -5,20 +5,105 @@ class GitHubAPI {
   }
 
   /**
+   * Check if a valid token exists
+   * @returns {boolean} - True if token exists
+   */
+  hasValidToken() {
+    return !!localStorage.getItem("github_token");
+  }
+
+  /**
+   * Universal query method for GitHub API calls
+   * @param {string} endpoint - API endpoint (relative for REST, full URL for GraphQL)
+   * @param {Object} options - Request options
+   * @param {string} options.method - HTTP method (default: GET)
+   * @param {Object} options.body - Request body for POST requests
+   * @param {string} options.type - API type: "rest" or "graphql" (default: "rest")
+   * @param {Function} options.rateLimitCallback - Callback for rate limit info
+   * @returns {Promise<Object>} - Response data
+   */
+  async query(endpoint, options = {}) {
+    const token = localStorage.getItem("github_token");
+    if (!token) {
+      throw new Error("No GitHub token available. Please authenticate first.");
+    }
+
+    const {
+      method = "GET",
+      body = null,
+      type = "rest",
+      rateLimitCallback = null,
+    } = options;
+
+    const isGraphQL = type === "graphql";
+    const url = isGraphQL
+      ? this.graphqlEndpoint
+      : `${this.restEndpoint}${endpoint}`;
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      ...(isGraphQL
+        ? { "Content-Type": "application/json" }
+        : { Accept: "application/vnd.github.v3+json" }),
+    };
+
+    const fetchOptions = {
+      method,
+      headers,
+      ...(body && { body: isGraphQL ? JSON.stringify(body) : body }),
+    };
+
+    const response = await fetch(url, fetchOptions);
+
+    // Handle rate limit info if callback provided
+    if (rateLimitCallback) {
+      const rateLimitInfo = this.extractRateLimitInfo(response.headers, type);
+      rateLimitCallback(rateLimitInfo);
+    }
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(
+          "Invalid or expired GitHub token. Please check your token and try again.",
+        );
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Validate a GitHub personal access token
-   * @param {string} token - GitHub personal access token
+   * @param {string} [token] - Token to validate (defaults to instance token)
    * @returns {Promise<boolean>} - True if token is valid
    */
-  async validateToken(token) {
+  async validateToken(token = null) {
+    const tokenToValidate = token || localStorage.getItem("github_token");
+    if (!tokenToValidate) {
+      return false;
+    }
+
     try {
-      const response = await fetch(`${this.restEndpoint}/user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
-      return response.ok;
+      // Temporarily store the provided token for validation
+      const originalToken = localStorage.getItem("github_token");
+      localStorage.setItem("github_token", tokenToValidate);
+
+      await this.query("/user");
+
+      // Restore original token
+      if (originalToken) {
+        localStorage.setItem("github_token", originalToken);
+      } else {
+        localStorage.removeItem("github_token");
+      }
+      return true;
     } catch (error) {
+      // Restore original token on error
+      const originalToken = localStorage.getItem("github_token");
+      if (originalToken && originalToken !== tokenToValidate) {
+        localStorage.setItem("github_token", originalToken);
+      }
       console.error("Token validation failed:", error);
       return false;
     }
@@ -26,26 +111,11 @@ class GitHubAPI {
 
   /**
    * Fetch user's organizations
-   * @param {string} token - GitHub personal access token
    * @returns {Promise<Array>} - Array of organization objects
    */
-  async getUserOrganizations(token) {
+  async getUserOrganizations() {
     try {
-      const response = await fetch(`${this.restEndpoint}/user/orgs`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch organizations: ${response.statusText}`,
-        );
-      }
-
-      const organizations = await response.json();
-      return organizations;
+      return await this.query("/user/orgs");
     } catch (error) {
       console.error("Error fetching organizations:", error);
       throw new Error(
@@ -56,12 +126,11 @@ class GitHubAPI {
 
   /**
    * Fetch assigned pull requests for an organization using GraphQL
-   * @param {string} token - GitHub personal access token
    * @param {string} organization - Organization name
    * @param {Function} rateLimitCallback - Callback to handle rate limit info
    * @returns {Promise<Object>} - GraphQL response data
    */
-  async fetchPullRequests(token, organization, rateLimitCallback = null) {
+  async fetchPullRequests(organization, rateLimitCallback = null) {
     const query = `
             query GetAssignedPRs {
                 search(
@@ -124,34 +193,12 @@ class GitHubAPI {
             }
         `;
 
-    const response = await fetch(this.graphqlEndpoint, {
+    const result = await this.query("", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
+      body: { query },
+      type: "graphql",
+      rateLimitCallback,
     });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error(
-          "Invalid or expired GitHub token. Please check your token and try again.",
-        );
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-
-    // Handle rate limit info if callback provided
-    if (rateLimitCallback) {
-      const rateLimitInfo = this.extractRateLimitInfo(
-        response.headers,
-        "graphql",
-      );
-      rateLimitCallback(rateLimitInfo);
-    }
 
     if (result.errors) {
       throw new Error(result.errors.map((e) => e.message).join(", "));
@@ -162,40 +209,21 @@ class GitHubAPI {
 
   /**
    * Fetch failed CI checks for a specific commit
-   * @param {string} token - GitHub personal access token
    * @param {string} owner - Repository owner
    * @param {string} repo - Repository name
    * @param {string} sha - Commit SHA
    * @param {Function} rateLimitCallback - Callback to handle rate limit info
    * @returns {Promise<Array>} - Array of failed check objects
    */
-  async fetchFailedChecks(token, owner, repo, sha, rateLimitCallback = null) {
+  async fetchFailedChecks(owner, repo, sha, rateLimitCallback = null) {
     try {
-      const response = await fetch(
-        `${this.restEndpoint}/repos/${owner}/${repo}/commits/${sha}/check-runs`,
+      const data = await this.query(
+        `/repos/${owner}/${repo}/commits/${sha}/check-runs`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github.v3+json",
-          },
+          rateLimitCallback,
         },
       );
 
-      if (!response.ok) {
-        console.warn(`Failed to fetch check runs for ${owner}/${repo}@${sha}`);
-        return [];
-      }
-
-      // Handle rate limit info if callback provided
-      if (rateLimitCallback) {
-        const rateLimitInfo = this.extractRateLimitInfo(
-          response.headers,
-          "rest",
-        );
-        rateLimitCallback(rateLimitInfo);
-      }
-
-      const data = await response.json();
       const failedChecks = [];
 
       if (data.check_runs) {

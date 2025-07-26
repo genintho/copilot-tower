@@ -200,7 +200,6 @@ class GitHubPRDashboard {
 
   async fetchPullRequests() {
     return await window.githubAPI.fetchPullRequests(
-      this.token,
       this.organization,
       (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
     );
@@ -463,7 +462,6 @@ class GitHubPRDashboard {
 
   async fetchFailedChecks(owner, repo, sha) {
     return await window.githubAPI.fetchFailedChecks(
-      this.token,
       owner,
       repo,
       sha,
