@@ -56,15 +56,22 @@
 
       <div class="main-content" id="mainContent" class="hidden">
         <div class="controls">
-          <button id="refreshButton">🔄 Refresh Data</button>
-          <span id="loadingSpinner" class="loading-inline" style="display: none"
-            >Loading...</span
-          >
-          <div class="rate-limit-container">
-            <span id="rateLimit"></span>
-            <span id="restRateLimit"></span>
+          <div class="controls-left">
+            <div class="refresh-section">
+              <button id="refreshButton">🔄 Refresh Data</button>
+              <button id="clearDataButton" class="warning">🗑️ Clear Data</button>
+              <span id="loadingSpinner" class="loading-inline" style="display: none"
+                >Loading...</span
+              >
+            </div>
+            <span id="lastUpdated"></span>
           </div>
-          <span id="lastUpdated"></span>
+          <div class="controls-right">
+            <div class="rate-limit-container">
+              <span id="rateLimit"></span>
+              <span id="restRateLimit"></span>
+            </div>
+          </div>
         </div>
 
         <div id="errorMessage" class="error" style="display: none"></div>

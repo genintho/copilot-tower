@@ -201,6 +201,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
 
 .org-dropdown-container label {
@@ -235,12 +236,30 @@ body {
 .controls {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 20px;
   padding: 15px 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.controls-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.refresh-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 #refreshButton {
@@ -257,6 +276,26 @@ body {
 
 #refreshButton:hover {
   background-color: #0860ca;
+}
+
+#clearDataButton {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#clearDataButton:hover {
+  background-color: #c82333;
+}
+
+.warning {
+  background-color: #dc3545 !important;
 }
 
 #lastUpdated {
@@ -524,8 +563,23 @@ tbody tr:hover {
 
   .controls {
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
+    align-items: stretch;
+  }
+
+  .controls-left {
+    align-items: center;
     text-align: center;
+  }
+
+  .controls-right {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .refresh-section {
+    justify-content: center;
   }
 
   .table-container {

@@ -35,6 +35,11 @@ class GitHubAuth {
       .getElementById("selectOrgButton")
       ?.addEventListener("click", () => this.handleOrgSelection());
 
+    // Main dashboard events
+    document
+      .getElementById("clearDataButton")
+      ?.addEventListener("click", () => this.clearAllData());
+
     // Handle browser back/forward for URL changes
     window.addEventListener("popstate", () => {
       this.selectedOrganization = this.getOrgFromURL();
@@ -333,10 +338,10 @@ class GitHubAuth {
   }
 
   addOrgDropdownToControls() {
-    const controls = document.querySelector(".controls");
+    const controlsRight = document.querySelector(".controls-right");
     const existingDropdown = document.getElementById("orgDropdown");
 
-    if (controls && !existingDropdown && this.organizations.length > 0) {
+    if (controlsRight && !existingDropdown && this.organizations.length > 0) {
       const dropdownHTML = this.createOrgDropdown();
       const dropdownContainer = document.createElement("div");
       dropdownContainer.className = "org-dropdown-container";
@@ -345,16 +350,8 @@ class GitHubAuth {
                 ${dropdownHTML}
             `;
 
-      // Insert after refresh button
-      const refreshButton = document.getElementById("refreshButton");
-      if (refreshButton) {
-        refreshButton.parentNode.insertBefore(
-          dropdownContainer,
-          refreshButton.nextSibling,
-        );
-      } else {
-        controls.prepend(dropdownContainer);
-      }
+      // Append to the right section (will appear after rate limits)
+      controlsRight.appendChild(dropdownContainer);
 
       this.setupOrgDropdownEvents();
     }
@@ -368,6 +365,19 @@ class GitHubAuth {
     localStorage.removeItem("github_orgs_cache");
     this.setOrgInURL(null);
     this.showTokenStep();
+  }
+
+  clearAllData() {
+    const confirmed = confirm(
+      "Are you sure you want to clear all stored data? This will log you out and clear all cached information."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+      localStorage.clear();
+      window.location.reload();
   }
 
   showError(message) {
