@@ -544,6 +544,19 @@ td:nth-child(2) {
   text-align: center;
 }
 
+/* Actions column */
+th:nth-child(7),
+td:nth-child(7) {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  text-align: center;
+}
+
+.actions-cell {
+  padding: 8px 4px;
+}
+
 tbody {
   transition: opacity 0.2s ease;
 }

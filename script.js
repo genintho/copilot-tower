@@ -301,6 +301,7 @@ class GitHubPRDashboard {
     row.appendChild(this.createStatusCell(pr));
     row.appendChild(this.createUpToDateCell(pr));
     row.appendChild(this.createCICell());
+    row.appendChild(this.createActionsCell());
 
     return row;
   }
@@ -428,6 +429,12 @@ class GitHubPRDashboard {
     return cell;
   }
 
+  createActionsCell() {
+    const cell = document.createElement("td");
+    cell.className = "actions-cell";
+    return cell;
+  }
+
   async loadCIStatusForPR(pr, row, index) {
     try {
       const sha = pr.latestCommitSha;
@@ -509,12 +516,9 @@ class GitHubPRDashboard {
 
   updateCICell(row, ciStatus, pr = null) {
     const ciCell = row.cells[5]; // CI Status is the 6th column (0-indexed)
+    const actionsCell = row.cells[6]; // Actions is the 7th column (0-indexed)
 
     if (ciStatus.class === "error" && ciStatus.failedChecks.length > 0) {
-      const rerunButton = pr
-        ? `<button class="rerun-button" onclick="window.main.handleRerunFailedJobs('${pr.repository.nameWithOwner}', '${pr.latestCommitSha}', this)" title="Re-run failed jobs">🔄 Re-run</button>`
-        : "";
-
       const failedChecks = ciStatus.failedChecks;
       const showExpandButton = failedChecks.length > 3;
       const visibleChecks = showExpandButton
@@ -530,7 +534,6 @@ class GitHubPRDashboard {
                 <div class="ci-status-container">
                     <div class="ci-status-left">
                         <span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>
-                        ${rerunButton}
                     </div>
                     <ul class="failed-checks-list">
                         ${visibleChecks
@@ -555,8 +558,15 @@ class GitHubPRDashboard {
                     </ul>
                 </div>
             `;
+
+      // Add re-run button to Actions column for failed CI
+      if (pr) {
+        actionsCell.innerHTML = `<button class="rerun-button" onclick="window.main.handleRerunFailedJobs('${pr.repository.nameWithOwner}', '${pr.latestCommitSha}', this)" title="Re-run failed jobs">🔄 Re-run</button>`;
+      }
     } else {
       ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
+      // Clear actions cell if no failed checks
+      actionsCell.innerHTML = "";
     }
   }
 
