@@ -100,7 +100,10 @@ class PullRequest {
 
   waitingForReview() {
     return (
-      this.isNotDraft && !this.hasBeenApproved() && !this.hasChangesRequested()
+      this.isNotDraft &&
+      !this.hasBeenApproved() &&
+      !this.hasChangesRequested() &&
+      this.reviewDecision === "REVIEW_REQUIRED"
     );
   }
 
@@ -295,8 +298,8 @@ class GitHubPRDashboard {
     row.appendChild(this.createRepositoryCell(pr));
     row.appendChild(this.createAuthorCell(pr));
     row.appendChild(this.createTitleCell(pr));
-    row.appendChild(this.createUpToDateCell(pr));
     row.appendChild(this.createStatusCell(pr));
+    row.appendChild(this.createUpToDateCell(pr));
     row.appendChild(this.createCICell());
 
     return row;
@@ -348,10 +351,6 @@ class GitHubPRDashboard {
       this.addPRTitleLink(cell, pr.url, pr.title);
     }
 
-    if (pr.isDraft) {
-      this.addDraftBadge(cell);
-    }
-
     return cell;
   }
 
@@ -394,6 +393,11 @@ class GitHubPRDashboard {
 
   createStatusCell(pr) {
     const cell = document.createElement("td");
+
+    if (pr.isDraft) {
+      this.addDraftBadge(cell);
+      return cell;
+    }
 
     if (pr.hasBeenApproved()) {
       cell.innerHTML =
