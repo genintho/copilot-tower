@@ -525,6 +525,25 @@ th {
   color: #24292f;
 }
 
+/* Fixed column widths */
+th:nth-child(1),
+td:nth-child(1) {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  text-align: center;
+}
+
 tbody {
   transition: opacity 0.2s ease;
 }

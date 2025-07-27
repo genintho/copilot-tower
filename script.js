@@ -318,6 +318,7 @@ class GitHubPRDashboard {
   createRepositoryCell(pr) {
     const cell = document.createElement("td");
     cell.textContent = pr.repository.name;
+    cell.title = pr.repository.name; // Show full name on hover
     return cell;
   }
 
