@@ -36,6 +36,6 @@ document.addEventListener("visibilitychange", () => {
   }
   const organization = window.org.selectedOrganization;
   if (organization) {
-      window.main.show(organization);
+    window.main.show(organization);
   }
 });

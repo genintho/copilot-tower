@@ -43,6 +43,10 @@ class PullRequest {
     return this.data.reviews;
   }
 
+  get reviewDecision() {
+    return this.data.reviewDecision;
+  }
+
   isReadyToBeMerged() {
     return this.isNotDraft && this.hasBeenApproved() && this.hasNoConflicts();
   }
@@ -52,37 +56,46 @@ class PullRequest {
   }
 
   hasBeenApproved() {
-    const reviews = this.reviews.nodes || [];
-    const hasApprovalReview = reviews.some((review) => {
-      const assignees = this.data.assignees.nodes || [];
-      const isAssignee = assignees.some(
-        (assignee) => assignee.login === review.author.login,
-      );
-      return review.state === "APPROVED" && !isAssignee;
-    });
-    return hasApprovalReview && !this.hasChangesRequested();
+    if (this.hasChangesRequested()) {
+      return false;
+    }
+    return this.reviewDecision === "APPROVED";
+    // const reviews = this.reviews.nodes || [];
+    // const hasApprovalReview = reviews.some((review) => {
+    //   const assignees = this.data.assignees.nodes || [];
+    //   const isAssignee = assignees.some(
+    //     (assignee) => assignee.login === review.author.login,
+    //   );
+    //   return review.state === "APPROVED" && !isAssignee;
+    // });
+    // return hasApprovalReview && !this.hasChangesRequested();
   }
 
   approvedBy() {
-    const reviews = this.reviews.nodes || [];
-    const approvedBy = [];
-    reviews.forEach((review) => {
-      if (review.state === "APPROVED") {
-        approvedBy.push(review.author);
-      }
-    });
-    return approvedBy;
+    return [];
+    // const reviews = this.reviews.nodes || [];
+    // const approvedBy = [];
+    // reviews.forEach((review) => {
+    //   if (review.state === "APPROVED") {
+    //     approvedBy.push(review.author);
+    //   }
+    // });
+    // return approvedBy;
   }
 
   hasChangesRequested() {
-    const reviews = this.reviews.nodes || [];
-    const hasChangesRequested = reviews.some(
-      (review) => review.state === "CHANGES_REQUESTED",
-    );
-    if (hasChangesRequested) {
+    if (this.reviewDecision === "CHANGES_REQUESTED") {
       return true;
     }
-    return reviews.some((review) => review.state === "COMMENTED");
+    return false;
+    // const reviews = this.reviews.nodes || [];
+    // const hasChangesRequested = reviews.some(
+    //   (review) => review.state === "CHANGES_REQUESTED",
+    // );
+    // if (hasChangesRequested) {
+    //   return true;
+    // }
+    // return reviews.some((review) => review.state === "COMMENTED");
   }
 
   waitingForReview() {

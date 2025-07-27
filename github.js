@@ -147,6 +147,7 @@ class GitHubAPI {
                                         login
                                     }
                                 }
+                                reviewDecision
                                 reviews(first: 10) {
                                     nodes {
                                         state
