@@ -225,6 +225,60 @@ class GitHubAPI {
   }
 
   /**
+   * Fetch workflow runs for a specific commit
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {string} sha - Commit SHA
+   * @param {Function} rateLimitCallback - Callback to handle rate limit info
+   * @returns {Promise<Array>} - Array of workflow run objects
+   */
+  async fetchWorkflowRuns(owner, repo, sha, rateLimitCallback = null) {
+    try {
+      const data = await this.query(
+        `/repos/${owner}/${repo}/actions/runs?head_sha=${sha}&per_page=100`,
+        {
+          rateLimitCallback,
+        },
+      );
+
+      return data.workflow_runs || [];
+    } catch (error) {
+      console.warn(
+        `Error fetching workflow runs for ${owner}/${repo}@${sha}:`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Re-run failed jobs for a workflow run
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {number} runId - Workflow run ID
+   * @param {Function} rateLimitCallback - Callback to handle rate limit info
+   * @returns {Promise<boolean>} - Success status
+   */
+  async rerunFailedJobs(owner, repo, runId, rateLimitCallback = null) {
+    try {
+      await this.query(
+        `/repos/${owner}/${repo}/actions/runs/${runId}/rerun-failed-jobs`,
+        {
+          method: "POST",
+          rateLimitCallback,
+        },
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `Error re-running failed jobs for ${owner}/${repo} run ${runId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
    * Extract rate limit information from response headers
    * @param {Headers} headers - Response headers
    * @param {string} type - API type ("graphql" or "rest")

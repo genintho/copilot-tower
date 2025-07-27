@@ -427,11 +427,15 @@ class GitHubPRDashboard {
     try {
       const sha = pr.latestCommitSha;
       if (!sha) {
-        this.updateCICell(row, {
-          text: "sha latest commit not found",
-          class: "neutral",
-          failedChecks: [],
-        });
+        this.updateCICell(
+          row,
+          {
+            text: "sha latest commit not found",
+            class: "neutral",
+            failedChecks: [],
+          },
+          pr,
+        );
         return;
       }
 
@@ -474,14 +478,18 @@ class GitHubPRDashboard {
         }
       }
 
-      this.updateCICell(row, ciStatus);
+      this.updateCICell(row, ciStatus, pr);
     } catch (error) {
       console.warn(`Failed to load CI status for PR ${pr.number}:`, error);
-      this.updateCICell(row, {
-        text: "Error",
-        class: "error",
-        failedChecks: [],
-      });
+      this.updateCICell(
+        row,
+        {
+          text: "Error",
+          class: "error",
+          failedChecks: [],
+        },
+        pr,
+      );
     }
   }
 
@@ -494,13 +502,20 @@ class GitHubPRDashboard {
     );
   }
 
-  updateCICell(row, ciStatus) {
+  updateCICell(row, ciStatus, pr = null) {
     const ciCell = row.cells[5]; // CI Status is the 6th column (0-indexed)
 
     if (ciStatus.class === "error" && ciStatus.failedChecks.length > 0) {
+      const rerunButton = pr
+        ? `<button class="rerun-button" onclick="window.main.handleRerunFailedJobs('${pr.repository.nameWithOwner}', '${pr.latestCommitSha}', this)" title="Re-run failed jobs">🔄 Re-run</button>`
+        : "";
+
       ciCell.innerHTML = `
                 <div class="ci-status-container">
-                    <span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>
+                    <div class="ci-status-left">
+                        <span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>
+                        ${rerunButton}
+                    </div>
                     <ul class="failed-checks-list">
                         ${ciStatus.failedChecks
                           .map(
@@ -610,6 +625,90 @@ class GitHubPRDashboard {
 
     document.getElementById("lastUpdated").textContent =
       `Last updated: ${relativeText}`;
+  }
+
+  /**
+   * Handle re-running failed CI jobs for a PR
+   * @param {string} repoNameWithOwner - Repository name with owner (e.g., "owner/repo")
+   * @param {string} sha - Commit SHA
+   * @param {HTMLButtonElement} button - The button that was clicked
+   */
+  async handleRerunFailedJobs(repoNameWithOwner, sha, button) {
+    const [owner, repo] = repoNameWithOwner.split("/");
+
+    // Update button state to loading
+    const originalText = button.textContent;
+    button.textContent = "⏳ Running...";
+    button.disabled = true;
+    button.classList.add("loading");
+
+    try {
+      // Get workflow runs for this commit
+      const workflowRuns = await window.githubAPI.fetchWorkflowRuns(
+        owner,
+        repo,
+        sha,
+        (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
+      );
+
+      // Find failed or cancelled runs
+      const failedRuns = workflowRuns.filter(
+        (run) => run.conclusion === "failure" || run.conclusion === "cancelled",
+      );
+
+      if (failedRuns.length === 0) {
+        button.textContent = "✅ No Failed Jobs";
+        button.classList.remove("loading");
+        button.classList.add("success");
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.disabled = false;
+          button.classList.remove("success");
+        }, 3000);
+        return;
+      }
+
+      // Re-run failed jobs for each failed run
+      let successCount = 0;
+      for (const run of failedRuns) {
+        const success = await window.githubAPI.rerunFailedJobs(
+          owner,
+          repo,
+          run.id,
+          (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
+        );
+        if (success) successCount++;
+      }
+
+      // Update button based on results
+      if (successCount === failedRuns.length) {
+        button.textContent = `✅ Re-ran ${successCount} job${successCount > 1 ? "s" : ""}`;
+        button.classList.remove("loading");
+        button.classList.add("success");
+      } else {
+        button.textContent = `⚠️ ${successCount}/${failedRuns.length} succeeded`;
+        button.classList.remove("loading");
+        button.classList.add("warning");
+      }
+
+      // Reset button after 5 seconds
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+        button.classList.remove("success", "warning");
+      }, 5000);
+    } catch (error) {
+      console.error("Error re-running failed jobs:", error);
+      button.textContent = "❌ Error";
+      button.classList.remove("loading");
+      button.classList.add("error");
+
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+        button.classList.remove("error");
+      }, 3000);
+    }
   }
 }
 window.main = new GitHubPRDashboard();
