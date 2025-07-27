@@ -353,6 +353,62 @@ class GitHubAPI {
   }
 
   /**
+   * Compare two commits to get behind/ahead counts
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {string} base - Base commit SHA
+   * @param {string} head - Head commit SHA
+   * @param {Function} rateLimitCallback - Callback to handle rate limit info
+   * @returns {Promise<Object>} - Comparison data with behind_by and ahead_by counts
+   */
+  async compareCommits(owner, repo, base, head, rateLimitCallback = null) {
+    try {
+      const endpoint = `/repos/${owner}/${repo}/compare/${base}...${head}`;
+      const response = await this.query(endpoint, {
+        method: "GET",
+        type: "rest",
+        rateLimitCallback,
+      });
+
+      return {
+        behind_by: response.behind_by || 0,
+        ahead_by: response.ahead_by || 0,
+        status: response.status,
+      };
+    } catch (error) {
+      console.error(`Error comparing commits for ${owner}/${repo}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the current HEAD SHA of a branch
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {string} branchName - Branch name (e.g., "main", "develop")
+   * @param {Function} rateLimitCallback - Callback to handle rate limit info
+   * @returns {Promise<string>} - Current HEAD SHA of the branch
+   */
+  async getBranchHeadSha(owner, repo, branchName, rateLimitCallback = null) {
+    try {
+      const endpoint = `/repos/${owner}/${repo}/git/ref/heads/${branchName}`;
+      const response = await this.query(endpoint, {
+        method: "GET",
+        type: "rest",
+        rateLimitCallback,
+      });
+
+      return response.object.sha;
+    } catch (error) {
+      console.error(
+        `Error getting HEAD SHA for branch ${branchName} in ${owner}/${repo}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Extract rate limit information from response headers
    * @param {Headers} headers - Response headers
    * @param {string} type - API type ("graphql" or "rest")

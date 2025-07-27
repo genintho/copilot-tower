@@ -153,6 +153,53 @@ class PullRequest {
     const commits = this.commits.nodes;
     return commits.length > 0 ? commits[0].commit.statusCheckRollup : null;
   }
+
+  async getCommitsBehindCount() {
+    if (!this.baseRefName || !this.latestCommitSha) {
+      return 0;
+    }
+
+    // Cache the result to avoid multiple API calls
+    if (this._behindCount !== undefined) {
+      return this._behindCount;
+    }
+
+    try {
+      const [owner, repo] = this.repository.nameWithOwner.split("/");
+
+      // Get the current HEAD SHA of the base branch
+      const currentBaseHeadSha = await window.githubAPI.getBranchHeadSha(
+        owner,
+        repo,
+        this.baseRefName,
+        (rateLimitInfo) => {
+          if (window.main && window.main.updateRateLimitUI) {
+            window.main.updateRateLimitUI(rateLimitInfo);
+          }
+        },
+      );
+
+      // Compare current base HEAD with PR's latest commit
+      const comparison = await window.githubAPI.compareCommits(
+        owner,
+        repo,
+        currentBaseHeadSha,
+        this.latestCommitSha,
+        (rateLimitInfo) => {
+          if (window.main && window.main.updateRateLimitUI) {
+            window.main.updateRateLimitUI(rateLimitInfo);
+          }
+        },
+      );
+
+      this._behindCount = comparison.behind_by;
+      return this._behindCount;
+    } catch (error) {
+      console.error("Error fetching commits behind count:", error);
+      this._behindCount = 0;
+      return 0;
+    }
+  }
 }
 
 class GitHubPRDashboard {
@@ -393,8 +440,25 @@ class GitHubPRDashboard {
       cell.innerHTML = '<span class="status-badge error">❌ Conflicts</span>';
     } else if (pr.hasUnknownMergeStatus) {
       cell.innerHTML = '<span class="status-badge neutral">🔄 Loading</span>';
-    } else if (pr.isBehindMainBranch) {
-      cell.innerHTML = '<span class="status-badge warning">⚠️ Behind</span>';
+    } else {
+      // Check if PR is behind using the API (more reliable than mergeStateStatus)
+      pr.getCommitsBehindCount()
+        .then((count) => {
+          if (count > 0) {
+            cell.innerHTML = `<span class="status-badge warning">⚠️ Behind (${count} commit${count === 1 ? "" : "s"})</span>`;
+          } else {
+            // PR is up to date - show nothing (empty cell)
+            cell.innerHTML = "";
+          }
+        })
+        .catch((error) => {
+          console.error("Error checking behind status:", error);
+          // On error, fall back to the old unreliable method
+          if (pr.isBehindMainBranch) {
+            cell.innerHTML =
+              '<span class="status-badge warning">⚠️ Behind</span>';
+          }
+        });
     }
     return cell;
   }
@@ -582,13 +646,6 @@ class GitHubPRDashboard {
       );
     }
 
-    // Add sync button for PRs behind base branch
-    if (pr && pr.isBehindMainBranch) {
-      actions.push(
-        `<button class="sync-button" onclick="window.main.handleSyncWithBaseBranch('${pr.repository.nameWithOwner}', ${pr.number}, '${pr.baseRefName}', this)" title="Sync with base branch">🔄 Sync with ${pr.baseRefName}</button>`,
-      );
-    }
-
     // Add re-run button for failed CI
     if (pr && ciStatus.class === "error" && ciStatus.failedChecks.length > 0) {
       actions.push(
@@ -596,7 +653,37 @@ class GitHubPRDashboard {
       );
     }
 
+    // Set initial actions
     actionsCell.innerHTML = actions.join(" ");
+
+    // Check if PR is behind using the API and add sync button asynchronously
+    if (pr) {
+      pr.getCommitsBehindCount()
+        .then((count) => {
+          if (count > 0) {
+            const syncButton = `<button class="sync-button" onclick="window.main.handleSyncWithBaseBranch('${pr.repository.nameWithOwner}', ${pr.number}, '${pr.baseRefName}', this)" title="Sync with base branch">🔄 Sync with ${pr.baseRefName}</button>`;
+
+            // Add sync button to existing actions
+            const currentActions = actionsCell.innerHTML
+              ? [actionsCell.innerHTML]
+              : [];
+            currentActions.push(syncButton);
+            actionsCell.innerHTML = currentActions.join(" ");
+          }
+        })
+        .catch((error) => {
+          console.error("Error checking behind status for sync button:", error);
+          // Fall back to old method on error
+          if (pr.isBehindMainBranch) {
+            const syncButton = `<button class="sync-button" onclick="window.main.handleSyncWithBaseBranch('${pr.repository.nameWithOwner}', ${pr.number}, '${pr.baseRefName}', this)" title="Sync with base branch">🔄 Sync with ${pr.baseRefName}</button>`;
+            const currentActions = actionsCell.innerHTML
+              ? [actionsCell.innerHTML]
+              : [];
+            currentActions.push(syncButton);
+            actionsCell.innerHTML = currentActions.join(" ");
+          }
+        });
+    }
   }
 
   showLoading(show) {
