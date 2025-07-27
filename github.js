@@ -5,7 +5,7 @@ class GitHubAPI {
     this.promiseCache = {};
   }
 
-  clearPromiseCache(){
+  clearPromiseCache() {
     this.promiseCache = {};
   }
 
@@ -359,6 +359,7 @@ class GitHubAPI {
 
   /**
    * Compare two commits to get behind/ahead counts
+   * @param {number} prNum
    * @param {string} owner - Repository owner
    * @param {string} repo - Repository name
    * @param {string} base - Base commit SHA
@@ -366,7 +367,23 @@ class GitHubAPI {
    * @param {Function} rateLimitCallback - Callback to handle rate limit info
    * @returns {Promise<Object>} - Comparison data with behind_by and ahead_by counts
    */
-  async compareCommits(owner, repo, base, head, rateLimitCallback = null) {
+  async compareCommits(
+    prNum,
+    owner,
+    repo,
+    base,
+    head,
+    rateLimitCallback = null,
+  ) {
+    const cacheRaw = localStorage.getItem(`github_compare`);
+    const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
+    const cache_key = `${owner}/${repo}/${prNum}/${base}...${head}`;
+    if (cache[cache_key]) {
+      cache[cache_key].usedAt = Date.now();
+      localStorage.setItem(`github_compare`, JSON.stringify(cache));
+      return cache[cache_key];
+    }
+
     try {
       const endpoint = `/repos/${owner}/${repo}/compare/${base}...${head}`;
       const response = await this.query(endpoint, {
@@ -375,11 +392,19 @@ class GitHubAPI {
         rateLimitCallback,
       });
 
-      return {
+      const data = {
         behind_by: response.behind_by || 0,
         ahead_by: response.ahead_by || 0,
         status: response.status,
+        usedAt: Date.now(),
       };
+      // need to read the cache again to avoid race conditions between multiple requests responding and when the cache is read
+      const cacheRaw = localStorage.getItem(`github_compare`);
+      const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
+      cache[cache_key] = data;
+      // @TODO: cache expiration
+      localStorage.setItem(`github_compare`, JSON.stringify(cache));
+      return data;
     } catch (error) {
       console.error(`Error comparing commits for ${owner}/${repo}:`, error);
       throw error;
@@ -395,14 +420,15 @@ class GitHubAPI {
    * @returns {Promise<string>} - Current HEAD SHA of the branch
    */
   async getBranchHeadSha(owner, repo, branchName, rateLimitCallback = null) {
-    this.promiseCache.getBranchHeadSha = this.promiseCache.getBranchHeadSha || {};
+    this.promiseCache.getBranchHeadSha =
+      this.promiseCache.getBranchHeadSha || {};
     const endpoint = `/repos/${owner}/${repo}/git/ref/heads/${branchName}`;
     if (this.promiseCache.getBranchHeadSha[endpoint]) {
       return this.promiseCache.getBranchHeadSha[endpoint];
     }
 
     try {
-      const q= this.query(endpoint, {
+      const q = this.query(endpoint, {
         method: "GET",
         type: "rest",
         rateLimitCallback,

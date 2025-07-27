@@ -181,6 +181,7 @@ class PullRequest {
 
       // Compare current base HEAD with PR's latest commit
       const comparison = await window.githubAPI.compareCommits(
+        this.number,
         owner,
         repo,
         currentBaseHeadSha.object.sha,
