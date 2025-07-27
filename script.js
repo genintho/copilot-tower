@@ -657,7 +657,7 @@ class GitHubPRDashboard {
     actionsCell.innerHTML = actions.join(" ");
 
     // Check if PR is behind using the API and add sync button asynchronously
-    if (pr) {
+    if (pr && pr.hasNoConflicts()) {
       pr.getCommitsBehindCount()
         .then((count) => {
           if (count > 0) {
@@ -673,15 +673,6 @@ class GitHubPRDashboard {
         })
         .catch((error) => {
           console.error("Error checking behind status for sync button:", error);
-          // Fall back to old method on error
-          if (pr.isBehindMainBranch) {
-            const syncButton = `<button class="sync-button" onclick="window.main.handleSyncWithBaseBranch('${pr.repository.nameWithOwner}', ${pr.number}, '${pr.baseRefName}', this)" title="Sync with base branch">🔄 Sync with ${pr.baseRefName}</button>`;
-            const currentActions = actionsCell.innerHTML
-              ? [actionsCell.innerHTML]
-              : [];
-            currentActions.push(syncButton);
-            actionsCell.innerHTML = currentActions.join(" ");
-          }
         });
     }
   }
