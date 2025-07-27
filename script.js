@@ -3,6 +3,9 @@ class PullRequest {
     this.data = prData;
   }
 
+  get id() {
+    return this.data.id;
+  }
   get title() {
     return this.data.title;
   }
@@ -558,16 +561,32 @@ class GitHubPRDashboard {
                     </ul>
                 </div>
             `;
-
-      // Add re-run button to Actions column for failed CI
-      if (pr) {
-        actionsCell.innerHTML = `<button class="rerun-button" onclick="window.main.handleRerunFailedJobs('${pr.repository.nameWithOwner}', '${pr.latestCommitSha}', this)" title="Re-run failed jobs">🔄 Re-run</button>`;
-      }
     } else {
       ciCell.innerHTML = `<span class="status-badge ${ciStatus.class}">${ciStatus.text}</span>`;
-      // Clear actions cell if no failed checks
-      actionsCell.innerHTML = "";
     }
+
+    // Update Actions column based on PR state
+    this.updateActionsCell(actionsCell, pr, ciStatus);
+  }
+
+  updateActionsCell(actionsCell, pr, ciStatus) {
+    const actions = [];
+
+    // Add convert draft button for draft PRs
+    if (pr && pr.isDraft) {
+      actions.push(
+        `<button class="convert-draft-button" onclick="window.main.handleConvertDraftToOpen('${pr.id}', this)" title="Convert to ready for review">📝 Draft => Open</button>`,
+      );
+    }
+
+    // Add re-run button for failed CI
+    if (pr && ciStatus.class === "error" && ciStatus.failedChecks.length > 0) {
+      actions.push(
+        `<button class="rerun-button" onclick="window.main.handleRerunFailedJobs('${pr.repository.nameWithOwner}', '${pr.latestCommitSha}', this)" title="Re-run failed jobs">🔄 Re-run</button>`,
+      );
+    }
+
+    actionsCell.innerHTML = actions.join(" ");
   }
 
   showLoading(show) {
@@ -664,6 +683,104 @@ class GitHubPRDashboard {
 
     document.getElementById("lastUpdated").textContent =
       `Last updated: ${relativeText}`;
+  }
+
+  /**
+   * Shared button state management utilities
+   */
+  setButtonLoading(button, loadingText) {
+    button.dataset.originalText = button.textContent;
+    button.textContent = loadingText;
+    button.disabled = true;
+    button.classList.add("loading");
+  }
+
+  setButtonSuccess(button, successText, resetDelay = 3000) {
+    button.textContent = successText;
+    button.classList.remove("loading");
+    button.classList.add("success");
+    this.scheduleButtonReset(button, resetDelay);
+  }
+
+  setButtonWarning(button, warningText, resetDelay = 5000) {
+    button.textContent = warningText;
+    button.classList.remove("loading");
+    button.classList.add("warning");
+    this.scheduleButtonReset(button, resetDelay);
+  }
+
+  setButtonError(button, errorText, resetDelay = 3000) {
+    button.textContent = errorText;
+    button.classList.remove("loading");
+    button.classList.add("error");
+    this.scheduleButtonReset(button, resetDelay);
+  }
+
+  scheduleButtonReset(button, delay) {
+    setTimeout(() => {
+      this.resetButton(button);
+    }, delay);
+  }
+
+  resetButton(button) {
+    const originalText = button.dataset.originalText || button.textContent;
+    button.textContent = originalText;
+    button.disabled = false;
+    button.classList.remove("loading", "success", "warning", "error");
+    delete button.dataset.originalText;
+  }
+
+  /**
+   * Generic action button handler
+   * @param {HTMLButtonElement} button - The button that was clicked
+   * @param {Object} actionConfig - Configuration object
+   * @param {string} actionConfig.loadingText - Text to show while loading
+   * @param {Function} actionConfig.action - Async function to execute
+   * @param {Function} actionConfig.onSuccess - Function to handle success result
+   * @param {Function} actionConfig.onError - Function to handle error (optional)
+   */
+  async handleActionButton(button, actionConfig) {
+    this.setButtonLoading(button, actionConfig.loadingText);
+
+    try {
+      const result = await actionConfig.action();
+      actionConfig.onSuccess(result);
+    } catch (error) {
+      console.error(`Action button error:`, error);
+      if (actionConfig.onError) {
+        actionConfig.onError(error);
+      } else {
+        this.setButtonError(button, "❌ Error");
+      }
+    }
+  }
+
+  /**
+   * Handle converting a draft PR to ready for review
+   * @param {string} nodeId - Pull request node ID (GraphQL ID)
+   * @param {HTMLButtonElement} button - The button that was clicked
+   */
+  async handleConvertDraftToOpen(nodeId, button) {
+    await this.handleActionButton(button, {
+      loadingText: "⏳ Converting...",
+      action: async () => {
+        return await window.githubAPI.markPullRequestReadyForReview(
+          nodeId,
+          (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
+        );
+      },
+      onSuccess: (result) => {
+        this.setButtonSuccess(button, "✅ Ready for Review");
+        // Refresh the PR data to update the UI
+        setTimeout(() => {
+          this.loadPullRequests();
+        }, 1000);
+      },
+      onError: (error) => {
+        console.error("Error converting draft to open:", error);
+        this.setButtonError(button, "❌ Failed");
+      },
+    });
   }
 
   /**

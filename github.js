@@ -113,6 +113,7 @@ class GitHubAPI {
                     edges {
                         node {
                             ... on PullRequest {
+                                id
                                 title
                                 url
                                 number
@@ -276,6 +277,47 @@ class GitHubAPI {
       );
       return false;
     }
+  }
+
+  /**
+   * Mark a draft pull request as ready for review
+   * @param {string} nodeId - Pull request node ID (GraphQL ID)
+   * @param {Function} rateLimitCallback - Callback to handle rate limit info
+   * @returns {Promise<Object>} - GraphQL response data
+   */
+  async markPullRequestReadyForReview(nodeId, rateLimitCallback = null) {
+    const mutation = `
+      mutation MarkPullRequestReadyForReview($pullRequestId: ID!) {
+        markPullRequestReadyForReview(input: {
+          pullRequestId: $pullRequestId
+        }) {
+          pullRequest {
+            id
+            isDraft
+            title
+            number
+          }
+        }
+      }
+    `;
+
+    const result = await this.query("", {
+      method: "POST",
+      body: {
+        query: mutation,
+        variables: {
+          pullRequestId: nodeId,
+        },
+      },
+      type: "graphql",
+      rateLimitCallback,
+    });
+
+    if (result.errors) {
+      throw new Error(result.errors.map((e) => e.message).join(", "));
+    }
+
+    return result.data;
   }
 
   /**
