@@ -379,6 +379,32 @@ body {
   text-decoration: underline;
 }
 
+/* Expand Checks Button */
+.expand-checks-item {
+  margin: 2px 0;
+}
+
+.expand-checks-button {
+  background: none;
+  border: none;
+  color: #656d76;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-family: inherit;
+  transition: color 0.2s ease;
+}
+
+.expand-checks-button:hover {
+  color: #24292f;
+}
+
+.hidden-checks {
+  margin: 0;
+  padding: 0;
+}
+
 /* Re-run Button */
 .rerun-button {
   padding: 4px 8px;

@@ -514,6 +514,17 @@ class GitHubPRDashboard {
         ? `<button class="rerun-button" onclick="window.main.handleRerunFailedJobs('${pr.repository.nameWithOwner}', '${pr.latestCommitSha}', this)" title="Re-run failed jobs">🔄 Re-run</button>`
         : "";
 
+      const failedChecks = ciStatus.failedChecks;
+      const showExpandButton = failedChecks.length > 3;
+      const visibleChecks = showExpandButton
+        ? failedChecks.slice(0, 2)
+        : failedChecks;
+      const hiddenChecks = showExpandButton ? failedChecks.slice(2) : [];
+
+      const expandButton = showExpandButton
+        ? `<li class="expand-checks-item"><button class="expand-checks-button" onclick="window.main.toggleFailedChecks(this)" data-expanded="false">more... (${hiddenChecks.length})</button></li>`
+        : "";
+
       ciCell.innerHTML = `
                 <div class="ci-status-container">
                     <div class="ci-status-left">
@@ -521,12 +532,25 @@ class GitHubPRDashboard {
                         ${rerunButton}
                     </div>
                     <ul class="failed-checks-list">
-                        ${ciStatus.failedChecks
+                        ${visibleChecks
                           .map(
                             (check) =>
                               `<li><a href="${check.url}" target="_blank" class="check-link">${check.name}</a></li>`,
                           )
                           .join("")}
+                        ${expandButton}
+                        ${
+                          hiddenChecks.length > 0
+                            ? `<div class="hidden-checks" style="display: none;">
+                            ${hiddenChecks
+                              .map(
+                                (check) =>
+                                  `<li><a href="${check.url}" target="_blank" class="check-link">${check.name}</a></li>`,
+                              )
+                              .join("")}
+                        </div>`
+                            : ""
+                        }
                     </ul>
                 </div>
             `;
@@ -712,6 +736,28 @@ class GitHubPRDashboard {
         button.disabled = false;
         button.classList.remove("error");
       }, 3000);
+    }
+  }
+
+  /**
+   * Toggle the visibility of failed checks list
+   * @param {HTMLButtonElement} button - The expand/collapse button
+   */
+  toggleFailedChecks(button) {
+    const isExpanded = button.dataset.expanded === "true";
+    const checksContainer = button.closest(".failed-checks-list");
+    const hiddenChecks = checksContainer.querySelector(".hidden-checks");
+
+    if (isExpanded) {
+      // Collapse: hide additional checks
+      hiddenChecks.style.display = "none";
+      button.textContent = `more... (${hiddenChecks.children.length})`;
+      button.dataset.expanded = "false";
+    } else {
+      // Expand: show all checks
+      hiddenChecks.style.display = "block";
+      button.textContent = "less...";
+      button.dataset.expanded = "true";
     }
   }
 }
