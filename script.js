@@ -39,6 +39,9 @@ class PullRequest {
   get author() {
     return this.data.author;
   }
+  get baseRefName() {
+    return this.data.baseRefName;
+  }
   get commits() {
     return this.data.commits;
   }
@@ -579,6 +582,13 @@ class GitHubPRDashboard {
       );
     }
 
+    // Add sync button for PRs behind base branch
+    if (pr && pr.isBehindMainBranch) {
+      actions.push(
+        `<button class="sync-button" onclick="window.main.handleSyncWithBaseBranch('${pr.repository.nameWithOwner}', ${pr.number}, '${pr.baseRefName}', this)" title="Sync with base branch">🔄 Sync with ${pr.baseRefName}</button>`,
+      );
+    }
+
     // Add re-run button for failed CI
     if (pr && ciStatus.class === "error" && ciStatus.failedChecks.length > 0) {
       actions.push(
@@ -778,6 +788,45 @@ class GitHubPRDashboard {
       },
       onError: (error) => {
         console.error("Error converting draft to open:", error);
+        this.setButtonError(button, "❌ Failed");
+      },
+    });
+  }
+
+  /**
+   * Handle syncing a PR branch with the base branch
+   * @param {string} repoNameWithOwner - Repository name with owner (e.g., "owner/repo")
+   * @param {number} pullNumber - Pull request number
+   * @param {string} baseBranch - Base branch name
+   * @param {HTMLButtonElement} button - The button that was clicked
+   */
+  async handleSyncWithBaseBranch(
+    repoNameWithOwner,
+    pullNumber,
+    baseBranch,
+    button,
+  ) {
+    const [owner, repo] = repoNameWithOwner.split("/");
+
+    await this.handleActionButton(button, {
+      loadingText: "⏳ Syncing...",
+      action: async () => {
+        return await window.githubAPI.updatePullRequestBranch(
+          owner,
+          repo,
+          pullNumber,
+          (rateLimitInfo) => this.handleRateLimitInfo(rateLimitInfo),
+        );
+      },
+      onSuccess: (result) => {
+        this.setButtonSuccess(button, "✅ Synced");
+        // Refresh the PR data to update the UI
+        setTimeout(() => {
+          this.loadPullRequests();
+        }, 1000);
+      },
+      onError: (error) => {
+        console.error("Error syncing with base branch:", error);
         this.setButtonError(button, "❌ Failed");
       },
     });

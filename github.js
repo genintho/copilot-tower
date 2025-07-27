@@ -321,6 +321,38 @@ class GitHubAPI {
   }
 
   /**
+   * Update a pull request branch with changes from the base branch
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {number} pullNumber - Pull request number
+   * @param {Function} rateLimitCallback - Callback to handle rate limit info
+   * @returns {Promise<Object>} - Response data
+   */
+  async updatePullRequestBranch(
+    owner,
+    repo,
+    pullNumber,
+    rateLimitCallback = null,
+  ) {
+    try {
+      const result = await this.query(
+        `/repos/${owner}/${repo}/pulls/${pullNumber}/update-branch`,
+        {
+          method: "PUT",
+          rateLimitCallback,
+        },
+      );
+      return result;
+    } catch (error) {
+      console.error(
+        `Error updating pull request branch for ${owner}/${repo}#${pullNumber}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Extract rate limit information from response headers
    * @param {Headers} headers - Response headers
    * @param {string} type - API type ("graphql" or "rest")
