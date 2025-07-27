@@ -190,7 +190,7 @@ class GitHubAPI {
   async fetchFailedChecks(owner, repo, sha, rateLimitCallback = null) {
     try {
       const data = await this.query(
-        `/repos/${owner}/${repo}/commits/${sha}/check-runs`,
+        `/repos/${owner}/${repo}/commits/${sha}/check-runs?status=completed&per_page=100`,
         {
           rateLimitCallback,
         },

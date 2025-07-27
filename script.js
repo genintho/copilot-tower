@@ -428,7 +428,7 @@ class GitHubPRDashboard {
       const sha = pr.latestCommitSha;
       if (!sha) {
         this.updateCICell(row, {
-          text: "No CI",
+          text: "sha latest commit not found",
           class: "neutral",
           failedChecks: [],
         });
