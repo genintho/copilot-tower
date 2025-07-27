@@ -183,7 +183,7 @@ class PullRequest {
       const comparison = await window.githubAPI.compareCommits(
         owner,
         repo,
-        currentBaseHeadSha,
+        currentBaseHeadSha.object.sha,
         this.latestCommitSha,
         (rateLimitInfo) => {
           if (window.main && window.main.updateRateLimitUI) {
@@ -221,6 +221,7 @@ class GitHubPRDashboard {
   show(org) {
     console.log("Showing main content for organization:", org);
     this.organization = org;
+    window.githubAPI.clearPromiseCache();
     window.auth.hide();
     window.org.hide();
     document.getElementById("mainContent")?.classList.remove("hidden");

@@ -2,6 +2,11 @@ class GitHubAPI {
   constructor() {
     this.restEndpoint = "https://api.github.com";
     this.graphqlEndpoint = "https://api.github.com/graphql";
+    this.promiseCache = {};
+  }
+
+  clearPromiseCache(){
+    this.promiseCache = {};
   }
 
   /**
@@ -390,15 +395,20 @@ class GitHubAPI {
    * @returns {Promise<string>} - Current HEAD SHA of the branch
    */
   async getBranchHeadSha(owner, repo, branchName, rateLimitCallback = null) {
+    this.promiseCache.getBranchHeadSha = this.promiseCache.getBranchHeadSha || {};
+    const endpoint = `/repos/${owner}/${repo}/git/ref/heads/${branchName}`;
+    if (this.promiseCache.getBranchHeadSha[endpoint]) {
+      return this.promiseCache.getBranchHeadSha[endpoint];
+    }
+
     try {
-      const endpoint = `/repos/${owner}/${repo}/git/ref/heads/${branchName}`;
-      const response = await this.query(endpoint, {
+      const q= this.query(endpoint, {
         method: "GET",
         type: "rest",
         rateLimitCallback,
       });
-
-      return response.object.sha;
+      this.promiseCache.getBranchHeadSha[endpoint] = q;
+      return q;
     } catch (error) {
       console.error(
         `Error getting HEAD SHA for branch ${branchName} in ${owner}/${repo}:`,
