@@ -214,7 +214,7 @@ class GitHubAPI {
         });
       }
 
-      return failedChecks;
+      return failedChecks.sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.warn(
         `Error fetching failed checks for ${owner}/${repo}@${sha}:`,
