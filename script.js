@@ -403,10 +403,8 @@ class GitHubPRDashboard {
     if (jiraKey) {
       this.addJiraLink(cell, jiraKey);
       cell.appendChild(document.createTextNode(" "));
-      this.addPRTitleLink(cell, pr.url, pr.getTitleWithoutJira());
-    } else {
-      this.addPRTitleLink(cell, pr.url, pr.title);
     }
+    this.addPRTitleLink(cell, pr.url, pr.getTitleWithoutJira());
 
     return cell;
   }
