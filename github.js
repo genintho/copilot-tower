@@ -7,6 +7,66 @@ class GitHubAPI {
 
   clearPromiseCache() {
     this.promiseCache = {};
+    this.evictLRUCache("github_failed_checks",1);
+    this.evictLRUCache("github_compare", 1);
+  }
+  /**
+   * Evict old entries from cache to maintain maximum size
+   * @param {string} cacheKey - localStorage key for the cache
+   * @param {number} maxSize - Maximum number of entries to keep (default: 100)
+   */
+  evictLRUCache(cacheKey, version, maxSize = 100) {
+    const cacheRaw = localStorage.getItem(cacheKey);
+    if (!cacheRaw) return;
+
+    const cache = JSON.parse(cacheRaw);
+
+    if(!cache.version || cache.version !== version) {
+      localStorage.setItem(cacheKey, JSON.stringify({ version }));
+      return;
+    }
+
+    const entries = Object.entries(cache);
+
+    if (entries.length <= maxSize) return;
+
+    // Sort by usedAt timestamp, oldest first
+    entries.sort((a, b) => (a[1].usedAt || 0) - (b[1].usedAt || 0));
+
+    // Keep only the most recent maxSize entries
+    const toKeep = entries.slice(-maxSize);
+    const newCache = {
+        version,
+    };
+
+    toKeep.forEach(([key, value]) => {
+      newCache[key] = value;
+    });
+
+    localStorage.setItem(cacheKey, JSON.stringify(newCache));
+  }
+
+  lruCacheGet(cacheKey, key) {
+    const cacheRaw = localStorage.getItem(cacheKey);
+    if (!cacheRaw) return null;
+
+    const cache = JSON.parse(cacheRaw);
+    if (cache[key]) {
+      cache[key].usedAt = Date.now();
+      localStorage.setItem(cacheKey, JSON.stringify(cache));
+      return cache[key].data;
+    }
+    return null;
+  }
+
+  lruCacheSet(cacheKey, key, data) {
+    const cacheRaw = localStorage.getItem(cacheKey);
+    const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
+    cache[key] = {
+      data: data,
+      usedAt: Date.now(),
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cache));
   }
 
   /**
@@ -194,6 +254,15 @@ class GitHubAPI {
    * @returns {Promise<Array>} - Array of failed check objects
    */
   async fetchFailedChecks(owner, repo, sha, rateLimitCallback = null) {
+    const cacheKey = `github_failed_checks`;
+    const cache_key = `${owner}/${repo}/${sha}`;
+
+    // Check cache first
+    const cached = this.lruCacheGet(cacheKey, cache_key);
+    if (cached) {
+      return cached;
+    }
+
     try {
       const data = await this.query(
         `/repos/${owner}/${repo}/commits/${sha}/check-runs?status=completed&per_page=100`,
@@ -220,7 +289,10 @@ class GitHubAPI {
         });
       }
 
-      return failedChecks.sort((a, b) => a.name.localeCompare(b.name));
+      const result = failedChecks.sort((a, b) => a.name.localeCompare(b.name));
+
+      this.lruCacheSet(cacheKey, cache_key, result);
+      return result;
     } catch (error) {
       console.warn(
         `Error fetching failed checks for ${owner}/${repo}@${sha}:`,
@@ -375,13 +447,13 @@ class GitHubAPI {
     head,
     rateLimitCallback = null,
   ) {
-    const cacheRaw = localStorage.getItem(`github_compare`);
-    const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
+    const cacheKey = `github_compare`;
     const cache_key = `${owner}/${repo}/${prNum}/${base}...${head}`;
-    if (cache[cache_key]) {
-      cache[cache_key].usedAt = Date.now();
-      localStorage.setItem(`github_compare`, JSON.stringify(cache));
-      return cache[cache_key];
+
+    // Check cache first
+    const cached = this.lruCacheGet(cacheKey, cache_key);
+    if (cached) {
+      return cached;
     }
 
     try {
@@ -396,14 +468,10 @@ class GitHubAPI {
         behind_by: response.behind_by || 0,
         ahead_by: response.ahead_by || 0,
         status: response.status,
-        usedAt: Date.now(),
       };
-      // need to read the cache again to avoid race conditions between multiple requests responding and when the cache is read
-      const cacheRaw = localStorage.getItem(`github_compare`);
-      const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
-      cache[cache_key] = data;
-      // @TODO: cache expiration
-      localStorage.setItem(`github_compare`, JSON.stringify(cache));
+
+      this.lruCacheSet(cacheKey, cache_key, data);
+
       return data;
     } catch (error) {
       console.error(`Error comparing commits for ${owner}/${repo}:`, error);
