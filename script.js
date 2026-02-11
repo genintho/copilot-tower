@@ -262,12 +262,6 @@ class GitHubPRDashboard {
     this.hideError();
     this.hideNoDataMessage();
 
-    // Add loading class to table for visual feedback
-    const tableContainer = document.querySelector(".table-container");
-    if (tableContainer) {
-      tableContainer.classList.add("loading");
-    }
-
     try {
       const data = await this.fetchPullRequests();
       this.displayPullRequests(data);
@@ -278,9 +272,6 @@ class GitHubPRDashboard {
       this.showError(`Failed to load pull requests: ${error.message}`);
     } finally {
       this.showLoading(false);
-      if (tableContainer) {
-        tableContainer.classList.remove("loading");
-      }
     }
   }
 
@@ -348,34 +339,27 @@ class GitHubPRDashboard {
       pocRows.push({ pr, row, index });
     });
 
-    // Fade out current content
-    tbody.style.opacity = "0.5";
+    tbody.innerHTML = "";
+    tbody.appendChild(fragment);
 
-    // Replace content after a brief delay for smooth transition
-    setTimeout(() => {
-      tbody.innerHTML = "";
-      tbody.appendChild(fragment);
-      tbody.style.opacity = "1";
+    // Load CI status asynchronously for each PR
+    newRows.forEach(({ pr, row, index }) => {
+      this.loadCIStatusForPR(pr, row, index);
+    });
 
-      // Load CI status asynchronously for each PR after content is visible
-      newRows.forEach(({ pr, row, index }) => {
+    // Handle POC PRs section
+    const pocTbody = document.getElementById("pocTableBody");
+    pocTbody.innerHTML = "";
+    if (pocPRs.length > 0) {
+      pocContainer.style.display = "block";
+      document.getElementById("pocCount").textContent = pocPRs.length;
+      pocTbody.appendChild(pocFragment);
+      pocRows.forEach(({ pr, row, index }) => {
         this.loadCIStatusForPR(pr, row, index);
       });
-
-      // Handle POC PRs section
-      const pocTbody = document.getElementById("pocTableBody");
-      pocTbody.innerHTML = "";
-      if (pocPRs.length > 0) {
-        pocContainer.style.display = "block";
-        document.getElementById("pocCount").textContent = pocPRs.length;
-        pocTbody.appendChild(pocFragment);
-        pocRows.forEach(({ pr, row, index }) => {
-          this.loadCIStatusForPR(pr, row, index);
-        });
-      } else {
-        pocContainer.style.display = "none";
-      }
-    }, 150);
+    } else {
+      pocContainer.style.display = "none";
+    }
   }
 
   createPRRow(pr) {

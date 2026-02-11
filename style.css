@@ -586,22 +586,6 @@ body {
   margin: 0 auto;
 }
 
-.table-container.loading {
-  opacity: 0.7;
-  position: relative;
-}
-
-.table-container.loading::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(1px);
-  z-index: 1;
-}
 
 table {
   width: 100%;
@@ -660,10 +644,6 @@ td:nth-child(4) {
 
 .actions-cell {
   padding: 8px 4px;
-}
-
-tbody {
-  transition: opacity 0.2s ease;
 }
 
 tbody tr:hover {
