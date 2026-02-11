@@ -144,6 +144,10 @@ class PullRequest {
     return this.title.replace(/^\[([A-Z]+-\d+)\]\s*/, "");
   }
 
+  get isPOC() {
+    return this.title.startsWith("[POC]");
+  }
+
   get latestCommitSha() {
     const commits = this.commits.nodes;
     return commits.length > 0 ? commits[0].commit.oid : null;
@@ -319,14 +323,29 @@ class GitHubPRDashboard {
       return new Date(a.updatedAt) - new Date(b.updatedAt);
     });
 
+    // Split PRs into regular and POC groups
+    const regularPRs = pullRequests.filter((pr) => !pr.isPOC);
+    const pocPRs = pullRequests.filter((pr) => pr.isPOC);
+
     // Create new content in document fragment first
     const fragment = document.createDocumentFragment();
     const newRows = [];
 
-    pullRequests.forEach(async (pr, index) => {
+    regularPRs.forEach(async (pr, index) => {
       const row = this.createPRRow(pr);
       fragment.appendChild(row);
       newRows.push({ pr, row, index });
+    });
+
+    // Build POC section
+    const pocContainer = document.getElementById("pocPrsContainer");
+    const pocFragment = document.createDocumentFragment();
+    const pocRows = [];
+
+    pocPRs.forEach(async (pr, index) => {
+      const row = this.createPRRow(pr);
+      pocFragment.appendChild(row);
+      pocRows.push({ pr, row, index });
     });
 
     // Fade out current content
@@ -342,6 +361,20 @@ class GitHubPRDashboard {
       newRows.forEach(({ pr, row, index }) => {
         this.loadCIStatusForPR(pr, row, index);
       });
+
+      // Handle POC PRs section
+      const pocTbody = document.getElementById("pocTableBody");
+      pocTbody.innerHTML = "";
+      if (pocPRs.length > 0) {
+        pocContainer.style.display = "block";
+        document.getElementById("pocCount").textContent = pocPRs.length;
+        pocTbody.appendChild(pocFragment);
+        pocRows.forEach(({ pr, row, index }) => {
+          this.loadCIStatusForPR(pr, row, index);
+        });
+      } else {
+        pocContainer.style.display = "none";
+      }
     }, 150);
   }
 

@@ -782,6 +782,36 @@ tbody tr:hover {
   text-transform: uppercase;
 }
 
+/* POC Pull Requests Section */
+#pocPrsContainer {
+  margin-top: 20px;
+}
+
+#pocPrsContainer summary {
+  cursor: pointer;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #656d76;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#pocPrsContainer summary:hover {
+  color: #24292f;
+}
+
+#pocPrsContainer[open] summary {
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+}
+
+#pocPrsContainer .table-container {
+  border-radius: 0 0 8px 8px;
+  margin-top: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {

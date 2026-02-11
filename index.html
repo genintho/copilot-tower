@@ -98,6 +98,26 @@
           </table>
         </div>
 
+        <details id="pocPrsContainer" style="display: none">
+          <summary>POC Pull Requests (<span id="pocCount">0</span>)</summary>
+          <div class="table-container">
+            <table class="poc-table">
+              <thead>
+                <tr>
+                  <th>Repository</th>
+                  <th>Author</th>
+                  <th>PR Title</th>
+                  <th>Status</th>
+                  <th>Up to Date</th>
+                  <th>CI Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="pocTableBody"></tbody>
+            </table>
+          </div>
+        </details>
+
         <div id="noPrsMessage" class="no-data" style="display: none">
           <p id="noPrsText">No assigned pull requests found.</p>
         </div>
