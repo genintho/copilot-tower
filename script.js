@@ -367,6 +367,7 @@ class GitHubPRDashboard {
 
     this.applyRowStyling(row, pr);
 
+    row.appendChild(this.createCheckoutCell(pr));
     row.appendChild(this.createRepositoryCell(pr));
     row.appendChild(this.createAuthorCell(pr));
     row.appendChild(this.createTitleCell(pr));
@@ -386,6 +387,18 @@ class GitHubPRDashboard {
     } else if (pr.isStale()) {
       row.classList.add("stale-pr");
     }
+  }
+
+  createCheckoutCell(pr) {
+    const cell = document.createElement("td");
+    const button = document.createElement("button");
+    button.textContent = "⬇️";
+    button.title = `gh pr checkout ${pr.number}`;
+    button.addEventListener("click", () => {
+      navigator.clipboard.writeText(`gh pr checkout ${pr.number}`);
+    });
+    cell.appendChild(button);
+    return cell;
   }
 
   createRepositoryCell(pr) {
