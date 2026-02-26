@@ -391,9 +391,11 @@ class GitHubPRDashboard {
 
   createCheckoutCell(pr) {
     const cell = document.createElement("td");
+    cell.className = "col-checkout";
     const button = document.createElement("button");
     button.textContent = "⬇️";
     button.title = `gh pr checkout ${pr.number}`;
+    button.className = "checkout-button";
     button.addEventListener("click", () => {
       navigator.clipboard.writeText(`gh pr checkout ${pr.number}`);
     });
@@ -403,6 +405,7 @@ class GitHubPRDashboard {
 
   createRepositoryCell(pr) {
     const cell = document.createElement("td");
+    cell.className = "col-repository";
     cell.textContent = pr.repository.name;
     cell.title = pr.repository.name; // Show full name on hover
     return cell;
@@ -410,6 +413,7 @@ class GitHubPRDashboard {
 
   createAuthorCell(pr) {
     const cell = document.createElement("td");
+    cell.className = "col-author";
 
     if (pr.author) {
       const avatar = document.createElement("img");
@@ -427,6 +431,7 @@ class GitHubPRDashboard {
 
   createTitleCell(pr) {
     const cell = document.createElement("td");
+    cell.className = "col-title";
 
     const jiraKey = pr.getJiraKey();
 
@@ -466,6 +471,7 @@ class GitHubPRDashboard {
 
   createUpToDateCell(pr) {
     const cell = document.createElement("td");
+    cell.className = "col-uptodate";
     if (pr.hasMergeConflicts) {
       cell.innerHTML = '<span class="status-badge error">❌ Conflicts</span>';
     } else if (pr.hasUnknownMergeStatus) {
@@ -495,6 +501,7 @@ class GitHubPRDashboard {
 
   createStatusCell(pr) {
     const cell = document.createElement("td");
+    cell.className = "col-status";
 
     if (pr.isDraft) {
       this.addDraftBadge(cell);
@@ -525,13 +532,14 @@ class GitHubPRDashboard {
 
   createCICell() {
     const cell = document.createElement("td");
+    cell.className = "col-ci";
     cell.innerHTML = '<span class="status-badge neutral">🔄 Loading...</span>';
     return cell;
   }
 
   createActionsCell() {
     const cell = document.createElement("td");
-    cell.className = "actions-cell";
+    cell.className = "col-actions";
     return cell;
   }
 

@@ -384,6 +384,20 @@ body {
   margin: 2px 0;
 }
 
+.checkout-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.checkout-button:hover {
+  opacity: 1;
+}
+
 .expand-checks-button {
   background: none;
   border: none;
@@ -609,9 +623,17 @@ th {
   color: #24292f;
 }
 
-/* Fixed widths for Repository and Author columns */
-th:nth-child(1),
-td:nth-child(1) {
+/* Checkout column */
+.col-checkout {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  padding: 12px 4px;
+  text-align: center;
+}
+
+/* Repository column */
+.col-repository {
   width: 140px;
   min-width: 140px;
   max-width: 140px;
@@ -620,17 +642,16 @@ td:nth-child(1) {
   white-space: nowrap;
 }
 
-th:nth-child(2),
-td:nth-child(2) {
+/* Author column */
+.col-author {
   width: 80px;
   min-width: 80px;
   max-width: 80px;
   text-align: center;
 }
 
-/* sttatus*/
-th:nth-child(4),
-td:nth-child(4) {
+/* Status column */
+.col-status {
   width: 80px;
   min-width: 80px;
   max-width: 80px;
