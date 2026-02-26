@@ -623,8 +623,8 @@ class GitHubPRDashboard {
   }
 
   updateCICell(row, ciStatus, pr = null) {
-    const ciCell = row.cells[5]; // CI Status is the 6th column (0-indexed)
-    const actionsCell = row.cells[6]; // Actions is the 7th column (0-indexed)
+    const ciCell = row.querySelector(".col-ci");
+    const actionsCell = row.querySelector(".col-actions");
 
     if (ciStatus.class === "error" && ciStatus.failedChecks.length > 0) {
       const failedChecks = ciStatus.failedChecks;
