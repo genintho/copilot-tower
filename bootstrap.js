@@ -16,6 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
   window.main.show(window.org.selectedOrganization);
 });
 
+document.getElementById("refreshButton")?.addEventListener("click", () => {
+  const organization = window.org.selectedOrganization;
+  if (organization) {
+    window.main.show(organization);
+  }
+});
+
 window.addEventListener("organizationChanged", (event) => {
   const orgName = event.detail.organization;
   const url = new URL(window.location);
@@ -28,14 +35,3 @@ window.addEventListener("organizationChanged", (event) => {
   window.main.show(orgName);
 });
 
-// Refresh when tab comes back into focus
-document.addEventListener("visibilitychange", () => {
-  console.log("Visibility changed. hidden:", document.hidden);
-  if (document.hidden) {
-    return;
-  }
-  const organization = window.org.selectedOrganization;
-  if (organization) {
-    window.main.show(organization);
-  }
-});
